@@ -1,4 +1,4 @@
-# Setup
+# Set up `pg_tde`
 
 Load the `pg_tde` at the start time. The extension requires additional shared memory; therefore,  add the `pg_tde` value for the `shared_preload_libraries` parameter and restart the `postgresql` instance.
 
@@ -68,3 +68,7 @@ Load the `pg_tde` at the start time. The extension requires additional shared me
     ```sql
     SELECT pg_tde_set_master_key('name-of-the-master-key', 'provider-name');
     ```
+
+## Next steps
+
+[Test TDE](test.md){.md-button}
