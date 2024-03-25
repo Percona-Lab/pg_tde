@@ -27,9 +27,9 @@ To check if the data is encrypted, do the following:
 3. Rotate the master key when needed:
 
     ```sql
-    SELECT pg_tde_rotate_key(); -- uses automatic key versionin
+    SELECT pg_tde_rotate_key(); -- uses automatic key versioning
     -- or
     SELECT pg_tde_rotate_key('new-master-key', NULL); -- specify new key name
     -- or
-    SELECT pg_tde_rotate_key('new-master-key', 'new-provider'); -- change provider
+    SELECT pg_tde_rotate_key('new-master-key', 'new-provider'); -- change a key provider
     ```

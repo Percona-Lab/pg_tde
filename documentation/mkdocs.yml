@@ -127,7 +127,7 @@ nav:
     - Test TDE: "test.md"
   - functions.md
   - How to:
-    - Configure streaming replication: replication.md
+    - Use external parameters: external-parameters.md
   - uninstall.md
   - contribute.md
 
