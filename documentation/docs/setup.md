@@ -1,4 +1,4 @@
-# Setup
+# Set up `pg_tde`
 
 Load the `pg_tde` at the start time. The extension requires additional shared memory; therefore,  add the `pg_tde` value for the `shared_preload_libraries` parameter and restart the `postgresql` instance.
 
@@ -38,57 +38,42 @@ Load the `pg_tde` at the start time. The extension requires additional shared me
         psql -d template1 -c 'CREATE EXTENSION pg_tde;'
         ```
 
-4. Set the location of the keyring configuration file in postgresql.conf: `pg_tde.keyringConfigFile = '/where/to/put/the/keyring.json'`
-5. Create the [keyring configuration file](#keyring-configuration)
-6. Start or restart the `postgresql` instance to apply the changes.
+4. Set up a key provider for the database where you have enabled the extension
 
-    * On Debian and Ubuntu:    
+    === "With HaschiCorp Vault"
 
-       ```sh
-       sudo systemctl restart postgresql.service
-       ```
-    
-    * On RHEL and derivatives
+        ```sql
+        SELECT pg_tde_add_key_provider_vault_v2('provider-name',:'secret_token','url','mount','ca_path');
+        ``` 
 
-       ```sh
-       sudo systemctl restart postgresql-16
-       ```
+        where: 
 
-## Keyring configuration
+        * `url` is the URL of the Vault server
+        * `mount` is the mount point where the keyring should store the keys
+        * `secret_token` is an access token with read and write access to the above mount point
+        * [optional] `ca_path` is the path of the CA file used for SSL verification
 
-Create the keyring configuration file with the following contents:
 
-=== "HashiCorp Vault"
+    === "With keyring file"
 
-     ```json
-     {
-             "provider": "vault-v2",
-             "token": "ROOT_TOKEN",
-             "url": "http://127.0.0.1:8200",
-             "mountPath": "secret",
-             "caPath": "<path/to/caFile>"
-     }
-     ```
+        This setup is intended for development and stores the keys unencrypted in the specified data file.    
 
-     where:
+        ```sql
+        SELECT pg_tde_add_key_provider_file('provider-name','/path/to/the/keyring/data.file');
+        ```
+       
+       
+5. Add a master key
 
-     * `provider` is set to `vault-v2` since only the version 2 of the KV secrets engine is supported
-     * `url` is the URL of the Vault server
-     * `mountPath` is the mount point where the keyring should store the keys
-     * `token` is an access token with read and write access to the above mount point
-     * [optional] `caPath` is the path of the CA file used for SSL verification
+    ```sql
+    SELECT pg_tde_set_master_key('name-of-the-master-key', 'provider-name');
+    ```
 
-=== "Local keyfile"
+   <i info>:material-information: Info:</i> The key provider configuration is stored in the database catalog in an unencrypted table. See [how to use external reference to parameters](external-parameters.md) to add an extra security layer to your setup.
 
-     ```json
-     {
-             "provider": "file",
-             "datafile": "/tmp/pgkeyring"
-     }
-     ```     
 
-     This keyring configuration has the file provider, with a single datafile parameter.     
 
-     This datafile is created and managed by PostgreSQL, the only requirement is that `postgres` should be able to write to the specified path.     
+## Next steps
 
-     This setup is intended for development, and stores the keys unencrypted in the specified data file.
+[Test TDE](test.md){.md-button}
+ 
