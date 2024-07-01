@@ -20,7 +20,7 @@ if (index(lc($PG_VERSION_STRING), lc("percona")) == -1)
 }
 
 # CREATE new PostgreSQL node and do initdb
-my $node = PGTDE->pgsm_init_pg();
+my $node = PGTDE->pgtde_init_pg();
 my $pgdata = $node->data_dir;
 
 copy("$pgdata/postgresql.conf", "$pgdata/postgresql.conf.bak");
