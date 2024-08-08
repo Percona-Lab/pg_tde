@@ -4,7 +4,7 @@
  *	  Heap-specific definitions for external and compressed storage
  *	  of variable size attributes.
  *
- * Copyright (c) 2000-2023, PostgreSQL Global Development Group
+ * Copyright (c) 2000-2024, PostgreSQL Global Development Group
  *
  *
  * IDENTIFICATION
@@ -706,7 +706,6 @@ tdeheap_fetch_toast_slice(Relation toastrel, Oid valueid, int32 attrsize,
 
 	/* Prepare for scan */
 	init_toast_snapshot(&SnapshotToast);
-
 	toastscan = systable_beginscan_ordered(toastrel, toastidxs[validIndex],
 										   &SnapshotToast, nscankeys, toastkey);
 
@@ -840,7 +839,7 @@ tdeheap_fetch_toast_slice(Relation toastrel, Oid valueid, int32 attrsize,
 	systable_endscan_ordered(toastscan);
 	toast_close_indexes(toastidxs, num_indexes, AccessShareLock);
 }
-
+// TODO: these should be in their own file so we can proplerly autoupdate them
 /* pg_tde extension */
 static void
 tdeheap_toast_encrypt(Pointer dval, Oid valueid, RelKeyData *key)
