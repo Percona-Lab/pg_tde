@@ -17,6 +17,8 @@
 #include "catalog/tde_global_space.h"
 #include "catalog/tde_keyring.h"
 #include "catalog/tde_principal_key.h"
+#include "common/jsonapi.h"
+#include "mb/pg_wchar.h"
 #include "access/skey.h"
 #include "access/relscan.h"
 #include "access/relation.h"
@@ -65,11 +67,50 @@ typedef enum ProviderScanType
 	PROVIDER_SCAN_ALL
 } ProviderScanType;
 
+/*
+ * JSON parser state
+*/
+
+typedef enum JsonKeyringField
+{
+	KRING_UNKNOWN,
+
+	KRING_TYPE,
+
+	JFKRING_PATH,
+
+	JVAULTKRING_TOKEN,
+	JVAULTKRING_URL,
+	JVAULTKRING_MOUNT_PATH,
+	JVAULTKRING_CA_PATH,
+} JsonKeyringField;
+
+typedef struct JsonKeyringState
+{
+	ProviderType provider_type;
+
+	JsonKeyringField field;
+	char		*type;
+
+	/* File fields */
+	char		*path;
+
+	/* Vault fields */
+	char		*token;
+	char		*url;
+	char		*mount_path;
+	char		*ca_path;
+} JsonKeyringState;
+
+static JsonParseErrorType json_kring_scalar(void *state, char *token, JsonTokenType tokentype);
+static JsonParseErrorType json_kring_object_field_start(void *state, char *fname, bool isnull);
+
 static List *scan_key_provider_file(ProviderScanType scanType, void *scanKey, Oid dbOid, Oid spcOid);
 
-static FileKeyring *load_file_keyring_provider_options(Datum keyring_options);
-static GenericKeyring *load_keyring_provider_options(ProviderType provider_type, Datum keyring_options);
-static VaultV2Keyring *load_vaultV2_keyring_provider_options(Datum keyring_options);
+static FileKeyring *load_file_keyring_provider_options(char *keyring_options);
+static GenericKeyring *load_keyring_provider_options(ProviderType provider_type, char *keyring_options);
+static VaultV2Keyring *load_vaultV2_keyring_provider_options(char *keyring_options);
+static JsonParseErrorType parse_keyring_provider_options(JsonKeyringState *parse, JsonLexContext *lex);
 static void debug_print_kerying(GenericKeyring *keyring);
 static char *get_keyring_infofile_path(char *resPath, Oid dbOid, Oid spcOid);
 static void key_provider_startup_cleanup(int tde_tbl_count, XLogExtensionInstall *ext_info, bool redo, void *arg);
@@ -165,12 +206,9 @@ get_keyring_provider_typename(ProviderType p_type)
 
 static GenericKeyring *load_keyring_provider_from_record(KeyringProvideRecord *provider)
 {
-	Datum option_datum;
 	GenericKeyring *keyring = NULL;
 
-	option_datum = CStringGetTextDatum(provider->options);
-
-	keyring = load_keyring_provider_options(provider->provider_type, option_datum);
+	keyring = load_keyring_provider_options(provider->provider_type, provider->options);
 	if (keyring)
 	{
 		keyring->key_id = provider->provider_id;
@@ -222,7 +260,7 @@ GetKeyProviderByID(int provider_id, Oid dbOid, Oid spcOid)
 }
 
 static GenericKeyring *
-load_keyring_provider_options(ProviderType provider_type, Datum keyring_options)
+load_keyring_provider_options(ProviderType provider_type, char *keyring_options)
 {
 	switch (provider_type)
 	{
@@ -239,44 +277,96 @@ load_keyring_provider_options(ProviderType provider_type, Datum keyring_options)
 }
 
 static FileKeyring *
-load_file_keyring_provider_options(Datum keyring_options)
+load_file_keyring_provider_options(char *keyring_options)
 {
-	const char* file_path = extract_json_option_value(keyring_options, FILE_KEYRING_PATH_KEY);
-	FileKeyring *file_keyring = palloc0(sizeof(FileKeyring));
-	
-	if(file_path == NULL)
+	FileKeyring			*file_keyring = NULL;
+	JsonLexContext		*jlex;
+	JsonKeyringState	parse = {0};
+	JsonParseErrorType	json_error;
+
+	parse.provider_type = FILE_KEY_PROVIDER;
+
+#if PG_VERSION_NUM < 170000
+	jlex = makeJsonLexContextCstringLen(keyring_options, strlen(keyring_options), PG_UTF8, true);
+#else
+	jlex = makeJsonLexContextCstringLen(NULL, keyring_options, strlen(keyring_options), PG_UTF8, true);
+#endif
+	json_error = parse_keyring_provider_options(&parse, jlex);
+
+	if (json_error != JSON_SUCCESS)
 	{
-		ereport(DEBUG2,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("file path is missing in the keyring options")));
-		return NULL;
+		ereport(WARNING,
+				(errmsg("parsing of file keyring options failed: %s", 
+							json_errdetail(json_error, jlex))));
+		goto cleanup;
 	}
 
+	if(parse.path == NULL || strlen(parse.path) == 0)
+	{
+		ereport(WARNING,
+				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+				 errmsg("file path is missing in the keyring options")));
+		goto cleanup;
+	}
+
+	file_keyring = palloc0(sizeof(FileKeyring));
 	file_keyring->keyring.type = FILE_KEY_PROVIDER;
-	strncpy(file_keyring->file_name, file_path, sizeof(file_keyring->file_name));
+	strncpy(file_keyring->file_name, parse.path, sizeof(file_keyring->file_name));
+
+cleanup:
+#if PG_VERSION_NUM >= 170000
+	freeJsonLexContext(jlex);
+#endif
 	return file_keyring;
 }
 
 static VaultV2Keyring *
-load_vaultV2_keyring_provider_options(Datum keyring_options)
+load_vaultV2_keyring_provider_options(char *keyring_options)
 {
-	VaultV2Keyring *vaultV2_keyring = palloc0(sizeof(VaultV2Keyring));
-	const char* token = extract_json_option_value(keyring_options, VAULTV2_KEYRING_TOKEN_KEY);
-	const char* url = extract_json_option_value(keyring_options, VAULTV2_KEYRING_URL_KEY);
-	const char* mount_path = extract_json_option_value(keyring_options, VAULTV2_KEYRING_MOUNT_PATH_KEY);
-	const char* ca_path = extract_json_option_value(keyring_options, VAULTV2_KEYRING_CA_PATH_KEY);
+	VaultV2Keyring		*vaultV2_keyring = NULL;
+	JsonLexContext		*jlex;
+	JsonKeyringState	parse = {0};
+	JsonParseErrorType	json_error;
 
-	if(token == NULL || url == NULL || mount_path == NULL)
+	parse.provider_type = VAULT_V2_KEY_PROVIDER;
+
+#if PG_VERSION_NUM < 170000
+	jlex = makeJsonLexContextCstringLen(keyring_options, strlen(keyring_options), PG_UTF8, true);
+#else 
+	jlex = makeJsonLexContextCstringLen(NULL, keyring_options, strlen(keyring_options), PG_UTF8, true);
+#endif
+	json_error = parse_keyring_provider_options(&parse, jlex);
+	
+	if (json_error != JSON_SUCCESS)
 	{
-		/* TODO: report error */
-		return NULL;
+		ereport(WARNING,
+				(errmsg("parsing of vault keyring options failed: %s", 
+							json_errdetail(json_error, jlex))));
+		goto cleanup;
+	}
+	
+	if(parse.token == NULL || parse.url == NULL || parse.mount_path == NULL)
+	{
+		ereport(WARNING,
+				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+				 errmsg("missing in the keyring options:%s%s%s",
+							!parse.token ? " token" : "",
+							!parse.url ? " url" : "",
+							!parse.mount_path ? " mountPath" : "")));
+		goto cleanup;
 	}
 
+	vaultV2_keyring = palloc0(sizeof(VaultV2Keyring));
 	vaultV2_keyring->keyring.type = VAULT_V2_KEY_PROVIDER;
-	strncpy(vaultV2_keyring->vault_token, token, sizeof(vaultV2_keyring->vault_token));
-	strncpy(vaultV2_keyring->vault_url, url, sizeof(vaultV2_keyring->vault_url));
-	strncpy(vaultV2_keyring->vault_mount_path, mount_path, sizeof(vaultV2_keyring->vault_mount_path));
-	strncpy(vaultV2_keyring->vault_ca_path, ca_path ? ca_path : "", sizeof(vaultV2_keyring->vault_ca_path));
+	strncpy(vaultV2_keyring->vault_token, parse.token, sizeof(vaultV2_keyring->vault_token));
+	strncpy(vaultV2_keyring->vault_url, parse.url, sizeof(vaultV2_keyring->vault_url));
+	strncpy(vaultV2_keyring->vault_mount_path, parse.mount_path, sizeof(vaultV2_keyring->vault_mount_path));
+	strncpy(vaultV2_keyring->vault_ca_path, parse.ca_path ? parse.ca_path : "", sizeof(vaultV2_keyring->vault_ca_path));
+
+cleanup:
+#if PG_VERSION_NUM >= 170000
+	freeJsonLexContext(jlex);
+#endif
 	return vaultV2_keyring;
 }
 
@@ -605,4 +695,102 @@ pg_tde_list_all_key_providers(PG_FUNCTION_ARGS)
 	}
 	list_free_deep(all_providers);
 	return (Datum)0;
+}
+
+/*
+ * JSON parser routines
+*/
+
+static JsonParseErrorType
+parse_keyring_provider_options(JsonKeyringState *parse, JsonLexContext *lex)
+{
+	JsonSemAction sem;
+
+	parse->field = KRING_UNKNOWN;
+
+	sem.semstate = parse;
+	sem.object_start = NULL;
+	sem.object_end = NULL;
+	sem.array_start = NULL;
+	sem.array_end = NULL;
+	sem.object_field_start = json_kring_object_field_start;
+	sem.object_field_end = NULL;
+	sem.array_element_start = NULL;
+	sem.array_element_end = NULL;
+	sem.scalar = json_kring_scalar;
+
+	return pg_parse_json(lex, &sem);
+}
+
+static JsonParseErrorType 
+json_kring_object_field_start(void *state, char *fname, bool isnull)
+{
+	JsonKeyringState *parse = state;
+
+	switch (parse->provider_type)
+	{
+		case FILE_KEY_PROVIDER:
+			if (strcmp(fname, "type") == 0)
+				parse->field = KRING_TYPE;
+			else if (strcmp(fname, "path") == 0)
+				parse->field = JFKRING_PATH;
+			else
+			{
+				parse->field = KRING_UNKNOWN;
+				elog(DEBUG1, "parse file keyring config: unexpected field %s", fname);
+			}
+			
+			break;
+		case VAULT_V2_KEY_PROVIDER:
+			if (strcmp(fname, "type") == 0)
+				parse->field = KRING_TYPE;
+			else if (strcmp(fname, "token") == 0)
+				parse->field = JVAULTKRING_TOKEN;
+			else if (strcmp(fname, "url") == 0)
+				parse->field = JVAULTKRING_URL;
+			else if (strcmp(fname, "mountPath") == 0)
+				parse->field = JVAULTKRING_MOUNT_PATH;
+			else if (strcmp(fname, "caPath") == 0)
+				parse->field = JVAULTKRING_CA_PATH;
+			else
+			{
+				parse->field = KRING_UNKNOWN;
+				elog(DEBUG1, "parse json keyring config: unexpected field %s", fname);
+			}
+
+			break;
+	}
+	return JSON_SUCCESS;
+}
+
+static JsonParseErrorType
+json_kring_scalar(void *state, char *token, JsonTokenType tokentype)
+{
+	JsonKeyringState *parse = state;
+
+	switch (parse->field)
+	{
+		case KRING_TYPE:
+			parse->type = token;
+			break;
+		case JFKRING_PATH:
+			if (tokentype == JSON_TOKEN_STRING)
+				parse->path = token;
+			break;
+
+		case JVAULTKRING_TOKEN:
+			parse->token = token;
+			break;
+		case JVAULTKRING_URL:
+			parse->url = token;
+			break;
+		case JVAULTKRING_MOUNT_PATH:
+			parse->mount_path = token;
+			break;
+		case JVAULTKRING_CA_PATH:
+			parse->ca_path = token;
+			break;
+	}
+
+	return JSON_SUCCESS;
 }
