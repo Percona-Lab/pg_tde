@@ -1,4 +1,4 @@
-name: postgresql-16-pgdg-package-pgxs
+name: postgresql-16-ppg-package-pgxs
 on: 
   pull_request:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: pg-16-pgdg-package-pgxs-build
+    name: pg-16-ppg-package-pgxs-build
     runs-on: ubuntu-22.04
     steps:
       - name: Remove old postgres
@@ -30,17 +30,29 @@ jobs:
           wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
           sudo apt update && sudo apt install -y vault
-
-
-      - name: Install PG Distribution Postgresql 16
+      
+      - name: Install percona-release script
         run: |
-          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt \
-            $(lsb_release -cs)-pgdg main 16" > /etc/apt/sources.list.d/pgdg.list'
-          sudo wget --quiet -O - \
-            https://www.postgresql.org/media/keys/ACCC4CF8.asc |
-            sudo apt-key add -
-          sudo apt update
-          sudo apt -y install postgresql-16 postgresql-server-dev-16
+          sudo apt-get -y update
+          sudo apt-get -y upgrade
+          sudo apt-get install -y wget gnupg2 curl lsb-release
+          sudo wget \
+            https://repo.percona.com/apt/percona-release_latest.generic_all.deb
+          sudo dpkg -i percona-release_latest.generic_all.deb
+
+      - name: Install Percona Distribution Postgresql 16 & Extensions
+        run: |
+          sudo percona-release setup ppg-16
+          sudo apt-get update -y
+          sudo apt-get install -y percona-postgresql-16 \
+            percona-postgresql-contrib percona-postgresql-server-dev-all \
+            percona-pgpool2 libpgpool2 percona-postgresql-16-pgaudit \
+            percona-postgresql-16-pgaudit-dbgsym percona-postgresql-16-repack \
+            percona-postgresql-16-repack-dbgsym percona-pgaudit16-set-user \
+            percona-pgaudit16-set-user-dbgsym percona-postgresql-16-postgis-3 \
+            percona-postgresql-16-postgis-3-scripts \
+            percona-postgresql-postgis-scripts percona-postgresql-postgis \
+            percona-postgis percona-pg-stat-monitor16
 
       - name: Clone pg_tde repository
         uses: actions/checkout@master
@@ -56,7 +68,7 @@ jobs:
         run: |
           sudo -u postgres bash -c './configure'
           sudo -u postgres bash -c 'make USE_PGXS=1'
-          sudo make USE_PGXS=1 MAJORVERSION=16 install
+          sudo make USE_PGXS=1 install
         working-directory: src/pg_tde
 
       - name: Start pg_tde tests
@@ -94,50 +106,50 @@ jobs:
 
       - name: Create release directory
         run: |
-          sudo mkdir pgtde-pgdg16
-          sudo mkdir -p pgtde-pgdg16/usr/lib/postgresql/16/lib/
-          sudo mkdir -p pgtde-pgdg16/share/postgresql/16/extension/
-          sudo cp /usr/share/postgresql/16/extension/pg_tde* pgtde-pgdg16/share/postgresql/16/extension/
-          sudo cp /usr/lib/postgresql/16/lib/pg_tde* pgtde-pgdg16/usr/lib/postgresql/16/lib/
+          sudo mkdir pgtde-ppg16
+          sudo mkdir -p pgtde-ppg16/usr/lib/postgresql/16/lib/
+          sudo mkdir -p pgtde-ppg16/share/postgresql/16/extension/
+          sudo cp /usr/share/postgresql/16/extension/pg_tde* pgtde-ppg16/share/postgresql/16/extension/
+          sudo cp /usr/lib/postgresql/16/lib/pg_tde* pgtde-ppg16/usr/lib/postgresql/16/lib/
 
       - name: Upload tgz
         uses: actions/upload-artifact@v4
         with:
-          name: pg_tde_pgdg16_binary
-          path: pgtde-pgdg16
+          name: pg_tde_ppg16_binary
+          path: pgtde-ppg16
 
       - name: Create deb
         run: |
-          sudo mkdir pgtde-pgdg16/DEBIAN
-          sudo sh -c 'echo "Package: pgtde-pgdg16" > pgtde-pgdg16/DEBIAN/control'
-          sudo sh -c 'echo "Version: 0.1" >> pgtde-pgdg16/DEBIAN/control'
-          sudo sh -c 'echo "Architecture: amd64" >> pgtde-pgdg16/DEBIAN/control'
-          sudo sh -c 'echo "Maintainer: Percona" >> pgtde-pgdg16/DEBIAN/control'
-          sudo sh -c 'echo "Description: Experimental pg_tde extension" >> pgtde-pgdg16/DEBIAN/control'
-          sudo dpkg-deb --build --root-owner-group pgtde-pgdg16
+          sudo mkdir pgtde-ppg16/DEBIAN
+          sudo sh -c 'echo "Package: pgtde-ppg16" > pgtde-ppg16/DEBIAN/control'
+          sudo sh -c 'echo "Version: 0.1" >> pgtde-ppg16/DEBIAN/control'
+          sudo sh -c 'echo "Architecture: amd64" >> pgtde-ppg16/DEBIAN/control'
+          sudo sh -c 'echo "Maintainer: Percona" >> pgtde-ppg16/DEBIAN/control'
+          sudo sh -c 'echo "Description: Experimental pg_tde extension" >> pgtde-ppg16/DEBIAN/control'
+          sudo dpkg-deb --build --root-owner-group pgtde-ppg16
 
       - name: Test deb
         run: |
           sudo rm -rf /usr/share/postgresql/16/extension/pg_tde*
           sudo rm -rf /usr/lib/postgresql/16/lib/pg_tde*
-          sudo dpkg -i --debug=7777 pgtde-pgdg16.deb
+          sudo dpkg -i --debug=7777 pgtde-ppg16.deb
 
       - name: Upload deb
         uses: actions/upload-artifact@v4
         with:
           name: pg_tde_deb
-          path: pgtde-pgdg16.deb
+          path: pgtde-ppg16.deb
 
       - name: Create tgz
         run: |
-          cd pgtde-pgdg16 && sudo tar -czvf ../pgtde-pgdg16.tar.gz .
+          cd pgtde-ppg16 && sudo tar -czvf ../pgtde-ppg16.tar.gz .
 
       - name: Publish release
         uses: ncipollo/release-action@v1
         # Only try and deploy on merged code
         if: "github.repository == 'Percona-Lab/pg_tde' && github.ref_name == 'main' && (github.event_name == 'push' || github.event_name == 'schedule')"
         with:
-          artifacts: "pgtde-pgdg16.tar.gz,pgtde-pgdg16.deb"
+          artifacts: "pgtde-ppg16.tar.gz,pgtde-ppg16.deb"
           omitBody: true
           allowUpdates: true
           generateReleaseNotes: true

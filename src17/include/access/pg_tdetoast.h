@@ -4,7 +4,7 @@
  *	  Heap-specific definitions for external and compressed storage
  *	  of variable size attributes.
  *
- * Copyright (c) 2000-2023, PostgreSQL Global Development Group
+ * Copyright (c) 2000-2024, PostgreSQL Global Development Group
  *
  * src/include/access/heaptoast.h
  *
@@ -12,7 +12,6 @@
  */
 #ifndef PG_TDE_TOAST_H
 #define PG_TDE_TOAST_H
-
 
 #include "access/htup_details.h"
 #include "storage/lockdefs.h"

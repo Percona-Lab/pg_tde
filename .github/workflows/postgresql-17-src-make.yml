@@ -1,10 +1,10 @@
-name: postgresql-16-src-make-ssl11
+name: postgresql-17-src-make
 on: [pull_request, workflow_dispatch]
 
 jobs:
   build:
-    name: pg-16-src-make-test-ssl11
-    runs-on: ubuntu-20.04
+    name: pg-17-src-make-test
+    runs-on: ubuntu-22.04
     steps:
 
 
@@ -24,9 +24,9 @@ jobs:
             zlib1g-dev libssl-dev libpam0g-dev bison flex \
             libipc-run-perl -y docbook-xsl docbook-xsl libxml2 libxml2-utils \
             libxml2-dev libxslt-dev xsltproc libkrb5-dev libldap2-dev \
-            libsystemd-dev gettext tcl-dev libperl-dev pkg-config \
-            libselinux1-dev python3-dev libhttp-server-simple-perl\
-            uuid-dev liblz4-dev libcurl4-openssl-dev
+            libsystemd-dev gettext tcl-dev libperl-dev pkg-config clang-11 \
+            llvm-11 llvm-11-dev libselinux1-dev python3-dev \
+            uuid-dev liblz4-dev libcurl4-openssl-dev libhttp-server-simple-perl
           sudo /usr/bin/perl -MCPAN -e 'install IPC::Run'
           sudo /usr/bin/perl -MCPAN -e 'install Text::Trim'
           wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
@@ -37,7 +37,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: 'postgres/postgres'
-          ref: 'a81e5516fa4bc53e332cb35eefe231147c0e1749'
+          ref: 'REL_17_STABLE'
           path: 'src'
 
       - name: Clone pg_tde repository
@@ -58,7 +58,7 @@ jobs:
       - name: Build pg_tde
         run: |
           ./configure
-          make -j MAJORVERSION=16
+          make -j MAJORVERSION=17
           sudo make install
         working-directory: src/contrib/pg_tde
 
