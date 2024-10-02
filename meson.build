@@ -96,6 +96,7 @@ sql_tests = [
       'trigger_on_view_basic',
       'change_access_method_basic',
       'insert_update_delete_basic',
+      'tablespace_basic',
       'vault_v2_test_basic',
 ]
 
