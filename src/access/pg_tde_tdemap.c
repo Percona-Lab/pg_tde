@@ -561,24 +561,23 @@ pg_tde_delete_key_map_entry(const RelFileLocator *rlocator)
  *
  * The offset allows us to simply seek to the desired location and mark the entry
  * as MAP_ENTRY_FREE without needing any further processing.
+ * 
+ * A caller should hold an EXCLUSIVE tde_lwlock_enc_keys lock.
  */
 void
 pg_tde_free_key_map_entry(const RelFileLocator *rlocator, off_t offset)
 {
 	int32	key_index = 0;
-	LWLock	*lock_files = tde_lwlock_enc_keys();
 	char	db_map_path[MAXPGPATH] = {0};
-	char	db_keydata_path[MAXPGPATH] = {0};
+	off_t	start = 0;
 
 	Assert(rlocator);
 
 	/* Get the file paths */
-	pg_tde_set_db_file_paths(rlocator, db_map_path, db_keydata_path);
+	pg_tde_set_db_file_paths(rlocator, db_map_path, NULL);
 
 	/* Remove the map entry if found */
-	LWLockAcquire(lock_files, LW_EXCLUSIVE);
 	key_index = pg_tde_process_map_entry(rlocator, db_map_path, &offset, true);
-	LWLockRelease(lock_files);
 
 	if (key_index == -1)
 	{
@@ -588,7 +587,16 @@ pg_tde_free_key_map_entry(const RelFileLocator *rlocator, off_t offset)
 						rlocator->relNumber,
 						db_map_path)));
 
-		return;
+	}
+	/* 
+	 * Remove TDE files it was the last TDE relation in a custom tablespace.
+	 * DROP TABLESPACE needs an empty dir.
+	 */
+	if (rlocator->spcOid != GLOBALTABLESPACE_OID && 
+			rlocator->spcOid != DEFAULTTABLESPACE_OID &&
+			pg_tde_process_map_entry(NULL, db_map_path, &start, false) == -1)
+	{
+		pg_tde_delete_tde_files(rlocator->dbOid, rlocator->spcOid);
 	}
 }
 
@@ -843,16 +851,23 @@ pg_tde_move_rel_key(const RelFileLocator *newrlocator, const RelFileLocator *old
 	RelKeyData 	*rel_key;
 	RelKeyData 	*enc_key;
 	TDEPrincipalKey *principal_key;
-	XLogRelKey xlrec;
-	LWLock *lock_pk = tde_lwlock_enc_keys();
+	XLogRelKey	xlrec;
+	char		db_map_path[MAXPGPATH] = {0};
+	off_t		offset = 0;
 
-	LWLockAcquire(lock_pk, LW_EXCLUSIVE);
+	LWLockAcquire(tde_lwlock_enc_keys(), LW_EXCLUSIVE);
+	
 	principal_key = GetPrincipalKey(oldrlocator->dbOid, oldrlocator->spcOid, LW_EXCLUSIVE);
 	rel_key = GetRelationKey(*oldrlocator);
 	Assert(rel_key);
 	enc_key = tde_encrypt_rel_key(principal_key, rel_key, newrlocator);
 	pg_tde_write_key_map_entry(newrlocator, enc_key, &principal_key->keyInfo);
 	pg_tde_put_key_into_cache(newrlocator->relNumber, rel_key);
+	
+	pg_tde_free_key_map_entry(oldrlocator, offset);
+
+	LWLockRelease(tde_lwlock_enc_keys());
+
 
 	xlrec.rlocator = *newrlocator;
 	xlrec.relKey = *enc_key;
@@ -860,7 +875,6 @@ pg_tde_move_rel_key(const RelFileLocator *newrlocator, const RelFileLocator *old
 	XLogRegisterData((char *) &xlrec, sizeof(xlrec));
 	XLogInsert(RM_TDERMGR_ID, XLOG_TDE_ADD_RELATION_KEY);
 
-	LWLockRelease(lock_pk);
 	pfree(enc_key);
 }
 
@@ -1208,7 +1222,6 @@ pg_tde_read_one_map_entry(File map_file, const RelFileLocator *rlocator, int fla
 
 	return found;
 }
-
 
 /*
  * Reads a single keydata from the file.
