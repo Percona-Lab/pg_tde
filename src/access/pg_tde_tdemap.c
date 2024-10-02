@@ -832,6 +832,38 @@ FINALIZE:
 	return !is_err;
 }
 
+/* 
+ * Move relation's key to the new physical location and cache it with the new
+ * relfilenode.
+ * Due to ALTER TABLE SET TABLESPACE for example.
+ */
+bool
+pg_tde_move_rel_key(const RelFileLocator *newrlocator, const RelFileLocator *oldrlocator)
+{
+	RelKeyData 	*rel_key;
+	RelKeyData 	*enc_key;
+	TDEPrincipalKey *principal_key;
+	XLogRelKey xlrec;
+	LWLock *lock_pk = tde_lwlock_enc_keys();
+
+	LWLockAcquire(lock_pk, LW_EXCLUSIVE);
+	principal_key = GetPrincipalKey(oldrlocator->dbOid, oldrlocator->spcOid, LW_EXCLUSIVE);
+	rel_key = GetRelationKey(*oldrlocator);
+	Assert(rel_key);
+	enc_key = tde_encrypt_rel_key(principal_key, rel_key, newrlocator);
+	pg_tde_write_key_map_entry(newrlocator, enc_key, &principal_key->keyInfo);
+	pg_tde_put_key_into_cache(newrlocator->relNumber, rel_key);
+
+	xlrec.rlocator = *newrlocator;
+	xlrec.relKey = *enc_key;
+	XLogBeginInsert();
+	XLogRegisterData((char *) &xlrec, sizeof(xlrec));
+	XLogInsert(RM_TDERMGR_ID, XLOG_TDE_ADD_RELATION_KEY);
+
+	LWLockRelease(lock_pk);
+	pfree(enc_key);
+}
+
 #endif		/* !FRONTEND */
 
 /*
