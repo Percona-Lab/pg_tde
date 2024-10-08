@@ -4,6 +4,30 @@
 
 [Get started](../install.md){.md-button}
 
+## Beta 2 ()
+
+With this release, `pg_tde` extension offers two database specific builds:
+
+*  The build for PostgreSQL Community provides only the `tde_heap_basic` access method using which youcan introduce table encryption and WAL encryption for data in the encrypted tables. Index data however,remains unencrypted.
+* The build for [Pecrcona Server for PostgreSQL]() provides the `tde_heap_basic` and the `tde_heap`access methods. The latter enables you to encrypt index data in encrypted tables thus increasing the safety of your sensitive data. Note that this is an experimental functionality; therefore, do not use it on production environments.
+
+The Beta 2 version introduces the following features and improvements:
+
+* You can now enable index encryption for encrypted tables and WAL data for both encrypted and unencrypted table using the `tde_heap` access method. To use this access method, you must install Percona Server for PostgreSQL. Note that this is an experimental access method; therefore, do not use it on production environments.
+* Added event triggers to identify index creation operations on encrypted tables and store those in a custom storage
+* Exposed Storage Manager API and added the usage of Initialization vector (IV) in it. 
+* WAL encryption improvements:
+
+   * Added a global key to encrypt WAL data in global space
+   * Added WAL key management
+
+* Keyring improvements include the following:
+  
+    * Renamed functions to point their usage for principal key management
+    * Improved keyring provider management across databases and the global space.
+    * Keyring configuration now uses common JSON API. This simplifies code handling and enables frontend tools like `pg_waldump` to read the code thus improving debugging.
+
+
 ## Beta (2024-06-30)
 
 With this version, the access method for `pg_tde` extension is renamed `tde_heap_basic`. Use this access method name to create tables. Find guidelines in [Test TDE](../test.md) tutorial.

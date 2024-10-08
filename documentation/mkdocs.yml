@@ -155,7 +155,8 @@ extra:
 
 nav:
   - Home: index.md
-  - tde.md
+  - tde.md 
+  - features.md
   - Get started:
     - "Install": "install.md"
     - "Via apt": apt.md
