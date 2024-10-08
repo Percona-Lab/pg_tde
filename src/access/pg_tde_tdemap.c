@@ -597,6 +597,7 @@ pg_tde_free_key_map_entry(const RelFileLocator *rlocator, off_t offset)
 			pg_tde_process_map_entry(NULL, db_map_path, &start, false) == -1)
 	{
 		pg_tde_delete_tde_files(rlocator->dbOid, rlocator->spcOid);
+		cleanup_key_provider_info(rlocator->dbOid, rlocator->spcOid);
 	}
 }
 
@@ -851,29 +852,60 @@ pg_tde_move_rel_key(const RelFileLocator *newrlocator, const RelFileLocator *old
 	RelKeyData 	*rel_key;
 	RelKeyData 	*enc_key;
 	TDEPrincipalKey *principal_key;
+	KeyringProvideRecord provider_rec;
+    GenericKeyring *keyring;
 	XLogRelKey	xlrec;
 	char		db_map_path[MAXPGPATH] = {0};
+	char		db_keydata_path[MAXPGPATH] = {0};
 	off_t		offset = 0;
+	int32		key_index = 0;
+
+	pg_tde_set_db_file_paths(oldrlocator, db_map_path, db_keydata_path);
 
 	LWLockAcquire(tde_lwlock_enc_keys(), LW_EXCLUSIVE);
-	
+
 	principal_key = GetPrincipalKey(oldrlocator->dbOid, oldrlocator->spcOid, LW_EXCLUSIVE);
-	rel_key = GetRelationKey(*oldrlocator);
-	Assert(rel_key);
+	Assert(principal_key);
+
+	/* 
+	 * copy kering provider info
+	 */
+	keyring = GetKeyProviderByID(principal_key->keyInfo.keyringId, oldrlocator->dbOid, oldrlocator->spcOid);
+	Assert(keyring);
+	memcpy(provider_rec.provider_name, keyring->provider_name, sizeof(keyring->provider_name));
+	provider_rec.provider_type = keyring->type;
+	memcpy(provider_rec.options, keyring->options, sizeof(keyring->options));
+	copy_key_provider_info(&provider_rec, newrlocator->dbOid, newrlocator->spcOid, true);
+
+	principal_key->keyInfo.keyringId = provider_rec.provider_id;
+
+	key_index = pg_tde_process_map_entry(oldrlocator, db_map_path, &offset, false);
+	Assert(key_index != -1);
+	/* 
+	 * Re-encrypt relation key. We don't use internal_key cache to avoid locking
+	 * complications.
+	 */
+	enc_key = pg_tde_read_keydata(db_keydata_path, key_index, principal_key);
+	rel_key = tde_decrypt_rel_key(principal_key, enc_key, oldrlocator);
 	enc_key = tde_encrypt_rel_key(principal_key, rel_key, newrlocator);
-	pg_tde_write_key_map_entry(newrlocator, enc_key, &principal_key->keyInfo);
-	pg_tde_put_key_into_cache(newrlocator->relNumber, rel_key);
-	
-	pg_tde_free_key_map_entry(oldrlocator, offset);
-
-	LWLockRelease(tde_lwlock_enc_keys());
-
 
 	xlrec.rlocator = *newrlocator;
 	xlrec.relKey = *enc_key;
+	xlrec.pkInfo = principal_key->keyInfo;
 	XLogBeginInsert();
 	XLogRegisterData((char *) &xlrec, sizeof(xlrec));
 	XLogInsert(RM_TDERMGR_ID, XLOG_TDE_ADD_RELATION_KEY);
+
+	pg_tde_write_key_map_entry(newrlocator, enc_key, &principal_key->keyInfo);
+	pg_tde_put_key_into_cache(newrlocator->relNumber, rel_key);
+
+	XLogBeginInsert();
+	XLogRegisterData((char *) oldrlocator, sizeof(RelFileLocator));
+	XLogInsert(RM_TDERMGR_ID, XLOG_TDE_FREE_MAP_ENTRY);
+
+	pg_tde_free_key_map_entry(oldrlocator, offset);
+
+	LWLockRelease(tde_lwlock_enc_keys());
 
 	pfree(enc_key);
 }
@@ -1044,7 +1076,7 @@ pg_tde_process_map_entry(const RelFileLocator *rlocator, char *db_map_path, off_
 
 /*
  * Open the file and read the required key data from file and return encrypted key.
- * The caller should hold 
+ * The caller should hold a tde_lwlock_enc_keys lock
  */
 static RelKeyData *
 pg_tde_read_keydata(char *db_keydata_path, int32 key_index, TDEPrincipalKey *principal_key)

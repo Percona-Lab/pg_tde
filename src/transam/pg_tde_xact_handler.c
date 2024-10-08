@@ -157,8 +157,6 @@ reassign_pending_deletes_to_parent_xact(void)
         if (pending->nestLevel == nestLevel)
             pending->nestLevel--;
     }
-
-    LWLockRelease(tde_lwlock_enc_keys());
 }
 
 /*

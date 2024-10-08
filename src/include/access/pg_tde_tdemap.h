@@ -31,6 +31,7 @@ typedef struct XLogRelKey
 {
 	RelFileLocator  rlocator;
 	RelKeyData      relKey;
+	TDEPrincipalKeyInfo pkInfo;
 } XLogRelKey;
 
 extern RelKeyData* pg_tde_create_key_map_entry(const RelFileLocator *newrlocator);
