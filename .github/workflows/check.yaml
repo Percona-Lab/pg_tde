@@ -9,6 +9,11 @@ jobs:
     timeout-minutes: 5
 
     steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
+
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
@@ -46,6 +51,11 @@ jobs:
     timeout-minutes: 5
 
     steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
+
       - name: Clone postgres repository
         uses: actions/checkout@v4
         with:
