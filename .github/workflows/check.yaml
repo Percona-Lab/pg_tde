@@ -14,6 +14,10 @@ jobs:
         with:
           path: src/pg_tde
 
+      - name: Configure pg_tde
+        run: ./configure
+        working-directory: src/pg_tde
+
       - name: Checkout cppcheck sources
         uses: actions/checkout@v4
         with:
@@ -55,6 +59,10 @@ jobs:
 
       - name: Configure postgres
         run: ./configure
+
+      - name: Configure pg_tde
+        run: ./configure
+        working-directory: contrib/pg_tde
 
       - name: Install perltidy
         run: sudo cpan -T SHANCOCK/Perl-Tidy-20230309.tar.gz
