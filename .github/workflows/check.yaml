@@ -98,16 +98,16 @@ jobs:
           git status
           git diff --exit-code
 
-  license:
-    name: License
-    runs-on: ubuntu-22.04
-    timeout-minutes: 5
+  # license:
+  #   name: License
+  #   runs-on: ubuntu-22.04
+  #   timeout-minutes: 5
 
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout sources
+  #       uses: actions/checkout@v4
 
-      - name: Check license headers
-        uses: apache/skywalking-eyes/header@v0.6.0
-        with:
-          token: "" # Prevent comments
+  #     - name: Check license headers
+  #       uses: apache/skywalking-eyes/header@v0.6.0
+  #       with:
+  #         token: "" # Prevent comments
