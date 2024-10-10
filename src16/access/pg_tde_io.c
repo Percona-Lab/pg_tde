@@ -38,10 +38,10 @@
  */
 void
 tdeheap_RelationPutHeapTuple(Relation relation,
-					 Buffer buffer,
-					 HeapTuple tuple,
-					 bool encrypt,
-					 bool token)
+							 Buffer buffer,
+							 HeapTuple tuple,
+							 bool encrypt,
+							 bool token)
 {
 	Page		pageHeader;
 	OffsetNumber offnum;
@@ -66,10 +66,10 @@ tdeheap_RelationPutHeapTuple(Relation relation,
 
 	if (encrypt)
 		offnum = TDE_PageAddItem(relation->rd_locator, tuple->t_tableOid, BufferGetBlockNumber(buffer), pageHeader, (Item) tuple->t_data,
-							tuple->t_len, InvalidOffsetNumber, false, true);
+								 tuple->t_len, InvalidOffsetNumber, false, true);
 	else
 		offnum = PageAddItem(pageHeader, (Item) tuple->t_data,
-							tuple->t_len, InvalidOffsetNumber, false, true);
+							 tuple->t_len, InvalidOffsetNumber, false, true);
 
 	if (offnum == InvalidOffsetNumber)
 		elog(PANIC, "failed to add tuple to page");
@@ -510,10 +510,10 @@ RelationAddBlocks(Relation relation, BulkInsertState bistate,
  */
 Buffer
 tdeheap_RelationGetBufferForTuple(Relation relation, Size len,
-						  Buffer otherBuffer, int options,
-						  BulkInsertState bistate,
-						  Buffer *vmbuffer, Buffer *vmbuffer_other,
-						  int num_pages)
+								  Buffer otherBuffer, int options,
+								  BulkInsertState bistate,
+								  Buffer *vmbuffer, Buffer *vmbuffer_other,
+								  int num_pages)
 {
 	bool		use_fsm = !(options & HEAP_INSERT_SKIP_FSM);
 	Buffer		buffer = InvalidBuffer;

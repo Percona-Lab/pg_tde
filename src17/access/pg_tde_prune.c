@@ -92,10 +92,10 @@ typedef struct
 
 	/*
 	 * Tuple visibility is only computed once for each tuple, for correctness
-	 * and efficiency reasons; see comment in tdeheap_page_prune_and_freeze() for
-	 * details.  This is of type int8[], instead of HTSV_Result[], so we can
-	 * use -1 to indicate no visibility has been computed, e.g. for LP_DEAD
-	 * items.
+	 * and efficiency reasons; see comment in tdeheap_page_prune_and_freeze()
+	 * for details.  This is of type int8[], instead of HTSV_Result[], so we
+	 * can use -1 to indicate no visibility has been computed, e.g. for
+	 * LP_DEAD items.
 	 *
 	 * This needs to be MaxHeapTuplesPerPage + 1 long as FirstOffsetNumber is
 	 * 1. Otherwise every access would need to subtract 1.
@@ -159,19 +159,19 @@ typedef struct
 
 /* Local functions */
 static HTSV_Result tdeheap_prune_satisfies_vacuum(PruneState *prstate,
-											   HeapTuple tup,
-											   Buffer buffer);
+												  HeapTuple tup,
+												  Buffer buffer);
 static inline HTSV_Result htsv_get_valid_status(int status);
 static void tdeheap_prune_chain(Page page, BlockNumber blockno, OffsetNumber maxoff,
-							 OffsetNumber rootoffnum, PruneState *prstate);
+								OffsetNumber rootoffnum, PruneState *prstate);
 static void tdeheap_prune_record_prunable(PruneState *prstate, TransactionId xid);
 static void tdeheap_prune_record_redirect(PruneState *prstate,
-									   OffsetNumber offnum, OffsetNumber rdoffnum,
-									   bool was_normal);
+										  OffsetNumber offnum, OffsetNumber rdoffnum,
+										  bool was_normal);
 static void tdeheap_prune_record_dead(PruneState *prstate, OffsetNumber offnum,
-								   bool was_normal);
+									  bool was_normal);
 static void tdeheap_prune_record_dead_or_unused(PruneState *prstate, OffsetNumber offnum,
-											 bool was_normal);
+												bool was_normal);
 static void tdeheap_prune_record_unused(PruneState *prstate, OffsetNumber offnum, bool was_normal);
 
 static void tdeheap_prune_record_unchanged_lp_unused(Page page, PruneState *prstate, OffsetNumber offnum);
@@ -266,7 +266,7 @@ tdeheap_page_prune_opt(Relation relation, Buffer buffer)
 			 * that during on-access pruning with the current implementation.
 			 */
 			tdeheap_page_prune_and_freeze(relation, buffer, vistest, 0,
-									   NULL, &presult, PRUNE_ON_ACCESS, &dummy_off_loc, NULL, NULL);
+										  NULL, &presult, PRUNE_ON_ACCESS, &dummy_off_loc, NULL, NULL);
 
 			/*
 			 * Report the number of tuples reclaimed to pgstats.  This is
@@ -353,14 +353,14 @@ tdeheap_page_prune_opt(Relation relation, Buffer buffer)
  */
 void
 tdeheap_page_prune_and_freeze(Relation relation, Buffer buffer,
-						   GlobalVisState *vistest,
-						   int options,
-						   struct VacuumCutoffs *cutoffs,
-						   PruneFreezeResult *presult,
-						   PruneReason reason,
-						   OffsetNumber *off_loc,
-						   TransactionId *new_relfrozen_xid,
-						   MultiXactId *new_relmin_mxid)
+							  GlobalVisState *vistest,
+							  int options,
+							  struct VacuumCutoffs *cutoffs,
+							  PruneFreezeResult *presult,
+							  PruneReason reason,
+							  OffsetNumber *off_loc,
+							  TransactionId *new_relfrozen_xid,
+							  MultiXactId *new_relmin_mxid)
 {
 	Page		page = BufferGetPage(buffer);
 	BlockNumber blockno = BufferGetBlockNumber(buffer);
@@ -548,7 +548,7 @@ tdeheap_page_prune_and_freeze(Relation relation, Buffer buffer,
 		ItemPointerSet(&tup.t_self, blockno, offnum);
 
 		prstate.htsv[offnum] = tdeheap_prune_satisfies_vacuum(&prstate, &tup,
-														   buffer);
+															  buffer);
 
 		if (!HeapTupleHeaderIsHeapOnly(htup))
 			prstate.root_items[prstate.nroot_items++] = offnum;
@@ -557,8 +557,8 @@ tdeheap_page_prune_and_freeze(Relation relation, Buffer buffer,
 	}
 
 	/*
-	 * If checksums are enabled, tdeheap_prune_satisfies_vacuum() may have caused
-	 * an FPI to be emitted.
+	 * If checksums are enabled, tdeheap_prune_satisfies_vacuum() may have
+	 * caused an FPI to be emitted.
 	 */
 	hint_bit_fpi = fpi_before != pgWalUsage.wal_fpi;
 
@@ -681,9 +681,9 @@ tdeheap_page_prune_and_freeze(Relation relation, Buffer buffer,
 		if (prstate.pagefrz.freeze_required)
 		{
 			/*
-			 * tdeheap_prepare_freeze_tuple indicated that at least one XID/MXID
-			 * from before FreezeLimit/MultiXactCutoff is present.  Must
-			 * freeze to advance relfrozenxid/relminmxid.
+			 * tdeheap_prepare_freeze_tuple indicated that at least one
+			 * XID/MXID from before FreezeLimit/MultiXactCutoff is present.
+			 * Must freeze to advance relfrozenxid/relminmxid.
 			 */
 			do_freeze = true;
 		}
@@ -755,12 +755,11 @@ tdeheap_page_prune_and_freeze(Relation relation, Buffer buffer,
 		 */
 	}
 
-	/* 
-	 * Make sure relation key in the cahce to avoid pallocs in
-	 * the critical section.
-	 * We need it here as there is `pgtde_compactify_tuples()` down in
-	 * the call stack wich reencrypt tuples.
-	*/
+	/*
+	 * Make sure relation key in the cahce to avoid pallocs in the critical
+	 * section. We need it here as there is `pgtde_compactify_tuples()` down
+	 * in the call stack wich reencrypt tuples.
+	 */
 	GetRelationKey(relation->rd_locator);
 
 	/* Any error while applying the changes is critical */
@@ -796,9 +795,9 @@ tdeheap_page_prune_and_freeze(Relation relation, Buffer buffer,
 		if (do_prune)
 		{
 			tdeheap_page_prune_execute(relation, buffer, false,
-									prstate.redirected, prstate.nredirected,
-									prstate.nowdead, prstate.ndead,
-									prstate.nowunused, prstate.nunused);
+									   prstate.redirected, prstate.nredirected,
+									   prstate.nowdead, prstate.ndead,
+									   prstate.nowunused, prstate.nunused);
 		}
 
 		if (do_freeze)
@@ -848,12 +847,12 @@ tdeheap_page_prune_and_freeze(Relation relation, Buffer buffer,
 				conflict_xid = prstate.latest_xid_removed;
 
 			log_tdeheap_prune_and_freeze(relation, buffer,
-									  conflict_xid,
-									  true, reason,
-									  prstate.frozen, prstate.nfrozen,
-									  prstate.redirected, prstate.nredirected,
-									  prstate.nowdead, prstate.ndead,
-									  prstate.nowunused, prstate.nunused);
+										 conflict_xid,
+										 true, reason,
+										 prstate.frozen, prstate.nfrozen,
+										 prstate.redirected, prstate.nredirected,
+										 prstate.nowdead, prstate.ndead,
+										 prstate.nowunused, prstate.nunused);
 		}
 	}
 
@@ -922,7 +921,7 @@ tdeheap_page_prune_and_freeze(Relation relation, Buffer buffer,
 	}
 }
 
-void TdePageRepairFragmentation(Relation rel, Buffer buffer, Page page);
+void		TdePageRepairFragmentation(Relation rel, Buffer buffer, Page page);
 
 /*
  * Perform visibility checks for heap pruning.
@@ -1011,7 +1010,7 @@ htsv_get_valid_status(int status)
  */
 static void
 tdeheap_prune_chain(Page page, BlockNumber blockno, OffsetNumber maxoff,
-				 OffsetNumber rootoffnum, PruneState *prstate)
+					OffsetNumber rootoffnum, PruneState *prstate)
 {
 	TransactionId priorXmax = InvalidTransactionId;
 	ItemId		rootlp;
@@ -1154,11 +1153,11 @@ tdeheap_prune_chain(Page page, BlockNumber blockno, OffsetNumber maxoff,
 	{
 		/*
 		 * We found a redirect item that doesn't point to a valid follow-on
-		 * item.  This can happen if the loop in tdeheap_page_prune_and_freeze()
-		 * caused us to visit the dead successor of a redirect item before
-		 * visiting the redirect item.  We can clean up by setting the
-		 * redirect item to LP_DEAD state or LP_UNUSED if the caller
-		 * indicated.
+		 * item.  This can happen if the loop in
+		 * tdeheap_page_prune_and_freeze() caused us to visit the dead
+		 * successor of a redirect item before visiting the redirect item.  We
+		 * can clean up by setting the redirect item to LP_DEAD state or
+		 * LP_UNUSED if the caller indicated.
 		 */
 		tdeheap_prune_record_dead_or_unused(prstate, rootoffnum, false);
 		return;
@@ -1200,7 +1199,7 @@ process_chain:
 		 * item that we are able to remove from the chain.
 		 */
 		tdeheap_prune_record_redirect(prstate, rootoffnum, chainitems[ndeadchain],
-								   ItemIdIsNormal(rootlp));
+									  ItemIdIsNormal(rootlp));
 		for (int i = 1; i < ndeadchain; i++)
 			tdeheap_prune_record_unused(prstate, chainitems[i], true);
 
@@ -1227,8 +1226,8 @@ tdeheap_prune_record_prunable(PruneState *prstate, TransactionId xid)
 /* Record line pointer to be redirected */
 static void
 tdeheap_prune_record_redirect(PruneState *prstate,
-						   OffsetNumber offnum, OffsetNumber rdoffnum,
-						   bool was_normal)
+							  OffsetNumber offnum, OffsetNumber rdoffnum,
+							  bool was_normal)
 {
 	Assert(!prstate->processed[offnum]);
 	prstate->processed[offnum] = true;
@@ -1258,7 +1257,7 @@ tdeheap_prune_record_redirect(PruneState *prstate,
 /* Record line pointer to be marked dead */
 static void
 tdeheap_prune_record_dead(PruneState *prstate, OffsetNumber offnum,
-					   bool was_normal)
+						  bool was_normal)
 {
 	Assert(!prstate->processed[offnum]);
 	prstate->processed[offnum] = true;
@@ -1292,7 +1291,7 @@ tdeheap_prune_record_dead(PruneState *prstate, OffsetNumber offnum,
  */
 static void
 tdeheap_prune_record_dead_or_unused(PruneState *prstate, OffsetNumber offnum,
-								 bool was_normal)
+									bool was_normal)
 {
 	/*
 	 * If the caller set mark_unused_now to true, we can remove dead tuples
@@ -1438,7 +1437,7 @@ tdeheap_prune_record_unchanged_lp_normal(Page page, PruneState *prstate, OffsetN
 			 * that the page is reconsidered for pruning in future.
 			 */
 			tdeheap_prune_record_prunable(prstate,
-									   HeapTupleHeaderGetUpdateXid(htup));
+										  HeapTupleHeaderGetUpdateXid(htup));
 			break;
 
 		case HEAPTUPLE_INSERT_IN_PROGRESS:
@@ -1475,14 +1474,15 @@ tdeheap_prune_record_unchanged_lp_normal(Page page, PruneState *prstate, OffsetN
 			 * the page is reconsidered for pruning in future.
 			 */
 			tdeheap_prune_record_prunable(prstate,
-									   HeapTupleHeaderGetUpdateXid(htup));
+										  HeapTupleHeaderGetUpdateXid(htup));
 			break;
 
 		default:
 
 			/*
-			 * DEAD tuples should've been passed to tdeheap_prune_record_dead()
-			 * or tdeheap_prune_record_unused() instead.
+			 * DEAD tuples should've been passed to
+			 * tdeheap_prune_record_dead() or tdeheap_prune_record_unused()
+			 * instead.
 			 */
 			elog(ERROR, "unexpected HeapTupleSatisfiesVacuum result %d",
 				 prstate->htsv[offnum]);
@@ -1494,11 +1494,11 @@ tdeheap_prune_record_unchanged_lp_normal(Page page, PruneState *prstate, OffsetN
 	{
 		bool		totally_frozen;
 
-		if ( (tdeheap_prepare_freeze_tuple(htup,
-									   prstate->cutoffs,
-									   &prstate->pagefrz,
-									   &prstate->frozen[prstate->nfrozen],
-									   &totally_frozen)))
+		if ((tdeheap_prepare_freeze_tuple(htup,
+										  prstate->cutoffs,
+										  &prstate->pagefrz,
+										  &prstate->frozen[prstate->nfrozen],
+										  &totally_frozen)))
 		{
 			/* Save prepared freeze plan for later */
 			prstate->frozen[prstate->nfrozen++].offset = offnum;
@@ -1534,9 +1534,9 @@ tdeheap_prune_record_unchanged_lp_dead(Page page, PruneState *prstate, OffsetNum
 	 * handled (handled here, or handled later on).
 	 *
 	 * Similarly, don't unset all_visible until later, at the end of
-	 * tdeheap_page_prune_and_freeze().  This will allow us to attempt to freeze
-	 * the page after pruning.  As long as we unset it before updating the
-	 * visibility map, this will be correct.
+	 * tdeheap_page_prune_and_freeze().  This will allow us to attempt to
+	 * freeze the page after pruning.  As long as we unset it before updating
+	 * the visibility map, this will be correct.
 	 */
 
 	/* Record the dead offset for vacuum */
@@ -1573,9 +1573,9 @@ tdeheap_prune_record_unchanged_lp_redirect(PruneState *prstate, OffsetNumber off
  */
 void
 tdeheap_page_prune_execute(Relation rel, Buffer buffer, bool lp_truncate_only,
-						OffsetNumber *redirected, int nredirected,
-						OffsetNumber *nowdead, int ndead,
-						OffsetNumber *nowunused, int nunused)
+						   OffsetNumber *redirected, int nredirected,
+						   OffsetNumber *nowdead, int ndead,
+						   OffsetNumber *nowunused, int nunused)
 {
 	Page		page = (Page) BufferGetPage(buffer);
 	OffsetNumber *offnum;
@@ -1693,12 +1693,12 @@ tdeheap_page_prune_execute(Relation rel, Buffer buffer, bool lp_truncate_only,
 		else
 		{
 			/*
-			 * When tdeheap_page_prune_and_freeze() was called, mark_unused_now
-			 * may have been passed as true, which allows would-be LP_DEAD
-			 * items to be made LP_UNUSED instead.  This is only possible if
-			 * the relation has no indexes.  If there are any dead items, then
-			 * mark_unused_now was not true and every item being marked
-			 * LP_UNUSED must refer to a heap-only tuple.
+			 * When tdeheap_page_prune_and_freeze() was called,
+			 * mark_unused_now may have been passed as true, which allows
+			 * would-be LP_DEAD items to be made LP_UNUSED instead.  This is
+			 * only possible if the relation has no indexes.  If there are any
+			 * dead items, then mark_unused_now was not true and every item
+			 * being marked LP_UNUSED must refer to a heap-only tuple.
 			 */
 			if (ndead > 0)
 			{
@@ -1723,7 +1723,7 @@ tdeheap_page_prune_execute(Relation rel, Buffer buffer, bool lp_truncate_only,
 		 * Finally, repair any fragmentation, and update the page's hint bit
 		 * about whether it has free pointers.
 		 */
-	TdePageRepairFragmentation(rel, buffer, page);
+		TdePageRepairFragmentation(rel, buffer, page);
 
 		/*
 		 * Now that the page has been modified, assert that redirect items
@@ -1949,8 +1949,8 @@ tdeheap_log_freeze_cmp(const void *arg1, const void *arg2)
 		return 1;
 
 	/*
-	 * tdeheap_log_freeze_eq would consider these tuple-wise plans to be equal.
-	 * (So the tuples will share a single canonical freeze plan.)
+	 * tdeheap_log_freeze_eq would consider these tuple-wise plans to be
+	 * equal. (So the tuples will share a single canonical freeze plan.)
 	 *
 	 * We tiebreak on page offset number to keep each freeze plan's page
 	 * offset number array individually sorted. (Unnecessary, but be tidy.)
@@ -1990,8 +1990,8 @@ tdeheap_log_freeze_new_plan(xlhp_freeze_plan *plan, HeapTupleFreeze *frz)
  */
 static int
 tdeheap_log_freeze_plan(HeapTupleFreeze *tuples, int ntuples,
-					 xlhp_freeze_plan *plans_out,
-					 OffsetNumber *offsets_out)
+						xlhp_freeze_plan *plans_out,
+						OffsetNumber *offsets_out)
 {
 	int			nplans = 0;
 
@@ -2008,7 +2008,7 @@ tdeheap_log_freeze_plan(HeapTupleFreeze *tuples, int ntuples,
 			tdeheap_log_freeze_new_plan(plans_out, frz);
 			nplans++;
 		}
-		else if  (tdeheap_log_freeze_eq(plans_out, frz))
+		else if (tdeheap_log_freeze_eq(plans_out, frz))
 		{
 			/* tup matches open canonical plan -- include tup in it */
 			Assert(offsets_out[i - 1] < frz->offset);
@@ -2065,13 +2065,13 @@ tdeheap_log_freeze_plan(HeapTupleFreeze *tuples, int ntuples,
  */
 void
 log_tdeheap_prune_and_freeze(Relation relation, Buffer buffer,
-						  TransactionId conflict_xid,
-						  bool cleanup_lock,
-						  PruneReason reason,
-						  HeapTupleFreeze *frozen, int nfrozen,
-						  OffsetNumber *redirected, int nredirected,
-						  OffsetNumber *dead, int ndead,
-						  OffsetNumber *unused, int nunused)
+							 TransactionId conflict_xid,
+							 bool cleanup_lock,
+							 PruneReason reason,
+							 HeapTupleFreeze *frozen, int nfrozen,
+							 OffsetNumber *redirected, int nredirected,
+							 OffsetNumber *dead, int ndead,
+							 OffsetNumber *unused, int nunused)
 {
 	xl_tdeheap_prune xlrec;
 	XLogRecPtr	recptr;
@@ -2185,8 +2185,8 @@ log_tdeheap_prune_and_freeze(Relation relation, Buffer buffer,
 	PageSetLSN(BufferGetPage(buffer), recptr);
 }
 
-// TODO: move to own file so it can be autoupdated
-// FROM src/page/bufpage.c
+/*  TODO: move to own file so it can be autoupdated */
+/*  FROM src/page/bufpage.c */
 
 /*
  * Tuple defrag support for PageRepairFragmentation and PageIndexMultiDelete
@@ -2228,7 +2228,7 @@ typedef itemIdCompactData *itemIdCompact;
  *
  * Callers must ensure that nitems is > 0
  */
-static void // this is where it happens!
+static void //this is where it happens !
 pgtde_compactify_tuples(Relation rel, Buffer buffer, itemIdCompact itemidbase, int nitems, Page page, bool presorted)
 {
 	PageHeader	phdr = (PageHeader) page;
@@ -2498,7 +2498,7 @@ TdePageRepairFragmentation(Relation rel, Buffer buffer, Page page)
 	nunused = totallen = 0;
 	last_offset = pd_special;
 	for (i = FirstOffsetNumber; i <= nline; i++)
-	{ 
+	{
 		lp = PageGetItemId(page, i);
 		if (ItemIdIsUsed(lp))
 		{

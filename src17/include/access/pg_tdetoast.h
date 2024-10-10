@@ -95,7 +95,7 @@
  * ----------
  */
 extern HeapTuple tdeheap_toast_insert_or_update(Relation rel, HeapTuple newtup,
-											 HeapTuple oldtup, int options);
+												HeapTuple oldtup, int options);
 
 /* ----------
  * tdeheap_toast_delete -
@@ -104,7 +104,7 @@ extern HeapTuple tdeheap_toast_insert_or_update(Relation rel, HeapTuple newtup,
  * ----------
  */
 extern void tdeheap_toast_delete(Relation rel, HeapTuple oldtup,
-							  bool is_speculative);
+								 bool is_speculative);
 
 /* ----------
  * toast_flatten_tuple -
@@ -143,7 +143,7 @@ extern HeapTuple toast_build_flattened_tuple(TupleDesc tupleDesc,
  * ----------
  */
 extern void tdeheap_fetch_toast_slice(Relation toastrel, Oid valueid,
-								   int32 attrsize, int32 sliceoffset,
-								   int32 slicelength, struct varlena *result);
+									  int32 attrsize, int32 sliceoffset,
+									  int32 slicelength, struct varlena *result);
 
 #endif							/* PG_TDE_TOAST_H */

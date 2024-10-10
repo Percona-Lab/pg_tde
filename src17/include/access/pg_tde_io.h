@@ -52,11 +52,11 @@ typedef struct BulkInsertStateData
 
 
 extern void tdeheap_RelationPutHeapTuple(Relation relation, Buffer buffer,
-								 HeapTuple tuple, bool encrypt, bool token);
+										 HeapTuple tuple, bool encrypt, bool token);
 extern Buffer tdeheap_RelationGetBufferForTuple(Relation relation, Size len,
-										Buffer otherBuffer, int options,
-										BulkInsertStateData *bistate,
-										Buffer *vmbuffer, Buffer *vmbuffer_other,
-										int num_pages);
+												Buffer otherBuffer, int options,
+												BulkInsertStateData *bistate,
+												Buffer *vmbuffer, Buffer *vmbuffer_other,
+												int num_pages);
 
 #endif							/* PG_TDE_IO_H */

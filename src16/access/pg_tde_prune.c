@@ -73,9 +73,10 @@ typedef struct
 
 	/*
 	 * Tuple visibility is only computed once for each tuple, for correctness
-	 * and efficiency reasons; see comment in tdeheap_page_prune() for details.
-	 * This is of type int8[], instead of HTSV_Result[], so we can use -1 to
-	 * indicate no visibility has been computed, e.g. for LP_DEAD items.
+	 * and efficiency reasons; see comment in tdeheap_page_prune() for
+	 * details. This is of type int8[], instead of HTSV_Result[], so we can
+	 * use -1 to indicate no visibility has been computed, e.g. for LP_DEAD
+	 * items.
 	 *
 	 * Same indexing as ->marked.
 	 */
@@ -84,14 +85,14 @@ typedef struct
 
 /* Local functions */
 static HTSV_Result tdeheap_prune_satisfies_vacuum(PruneState *prstate,
-											   HeapTuple tup,
-											   Buffer buffer);
+												  HeapTuple tup,
+												  Buffer buffer);
 static int	tdeheap_prune_chain(Buffer buffer,
-							 OffsetNumber rootoffnum,
-							 PruneState *prstate);
+								OffsetNumber rootoffnum,
+								PruneState *prstate);
 static void tdeheap_prune_record_prunable(PruneState *prstate, TransactionId xid);
 static void tdeheap_prune_record_redirect(PruneState *prstate,
-									   OffsetNumber offnum, OffsetNumber rdoffnum);
+										  OffsetNumber offnum, OffsetNumber rdoffnum);
 static void tdeheap_prune_record_dead(PruneState *prstate, OffsetNumber offnum);
 static void tdeheap_prune_record_unused(PruneState *prstate, OffsetNumber offnum);
 static void page_verify_redirects(Page page);
@@ -211,7 +212,7 @@ tdeheap_page_prune_opt(Relation relation, Buffer buffer)
 						nnewlpdead;
 
 			ndeleted = tdeheap_page_prune(relation, buffer, vistest, limited_xmin,
-									   limited_ts, &nnewlpdead, NULL);
+										  limited_ts, &nnewlpdead, NULL);
 
 			/*
 			 * Report the number of tuples reclaimed to pgstats.  This is
@@ -268,11 +269,11 @@ tdeheap_page_prune_opt(Relation relation, Buffer buffer)
  */
 int
 tdeheap_page_prune(Relation relation, Buffer buffer,
-				GlobalVisState *vistest,
-				TransactionId old_snap_xmin,
-				TimestampTz old_snap_ts,
-				int *nnewlpdead,
-				OffsetNumber *off_loc)
+				   GlobalVisState *vistest,
+				   TransactionId old_snap_xmin,
+				   TimestampTz old_snap_ts,
+				   int *nnewlpdead,
+				   OffsetNumber *off_loc)
 {
 	int			ndeleted = 0;
 	Page		page = BufferGetPage(buffer);
@@ -314,8 +315,9 @@ tdeheap_page_prune(Relation relation, Buffer buffer,
 	 * DEAD if another checked item causes GlobalVisTestIsRemovableFullXid()
 	 * to update the horizon, INSERT_IN_PROGRESS can change to DEAD if the
 	 * inserting transaction aborts, ...). That in turn could cause
-	 * tdeheap_prune_chain() to behave incorrectly if a tuple is reached twice,
-	 * once directly via a tdeheap_prune_chain() and once following a HOT chain.
+	 * tdeheap_prune_chain() to behave incorrectly if a tuple is reached
+	 * twice, once directly via a tdeheap_prune_chain() and once following a
+	 * HOT chain.
 	 *
 	 * It's also good for performance. Most commonly tuples within a page are
 	 * stored at decreasing offsets (while the items are stored at increasing
@@ -353,7 +355,7 @@ tdeheap_page_prune(Relation relation, Buffer buffer,
 			*off_loc = offnum;
 
 		prstate.htsv[offnum] = tdeheap_prune_satisfies_vacuum(&prstate, &tup,
-														   buffer);
+															  buffer);
 	}
 
 	/* Scan the page */
@@ -384,12 +386,11 @@ tdeheap_page_prune(Relation relation, Buffer buffer,
 	if (off_loc)
 		*off_loc = InvalidOffsetNumber;
 
-	/* 
-	 * Make sure relation key in the cahce to avoid pallocs in
-	 * the critical section.
-	 * We need it here as there is `pgtde_compactify_tuples()` down in
-	 * the call stack wich reencrypt tuples.
-	*/
+	/*
+	 * Make sure relation key in the cahce to avoid pallocs in the critical
+	 * section. We need it here as there is `pgtde_compactify_tuples()` down
+	 * in the call stack wich reencrypt tuples.
+	 */
 	GetRelationKey(relation->rd_locator);
 
 	/* Any error while applying the changes is critical */
@@ -403,9 +404,9 @@ tdeheap_page_prune(Relation relation, Buffer buffer,
 		 * update the page's hint bit about whether it has free line pointers.
 		 */
 		tdeheap_page_prune_execute(prstate.rel, buffer,
-								prstate.redirected, prstate.nredirected,
-								prstate.nowdead, prstate.ndead,
-								prstate.nowunused, prstate.nunused);
+								   prstate.redirected, prstate.nredirected,
+								   prstate.nowdead, prstate.ndead,
+								   prstate.nowunused, prstate.nunused);
 
 		/*
 		 * Update the page's pd_prune_xid field to either zero, or the lowest
@@ -747,7 +748,7 @@ tdeheap_prune_chain(Buffer buffer, OffsetNumber rootoffnum, PruneState *prstate)
 				 * that the page is reconsidered for pruning in future.
 				 */
 				tdeheap_prune_record_prunable(prstate,
-										   HeapTupleHeaderGetUpdateXid(htup));
+											  HeapTupleHeaderGetUpdateXid(htup));
 				break;
 
 			case HEAPTUPLE_DELETE_IN_PROGRESS:
@@ -757,7 +758,7 @@ tdeheap_prune_chain(Buffer buffer, OffsetNumber rootoffnum, PruneState *prstate)
 				 * that the page is reconsidered for pruning in future.
 				 */
 				tdeheap_prune_record_prunable(prstate,
-										   HeapTupleHeaderGetUpdateXid(htup));
+											  HeapTupleHeaderGetUpdateXid(htup));
 				break;
 
 			case HEAPTUPLE_LIVE:
@@ -853,8 +854,8 @@ tdeheap_prune_chain(Buffer buffer, OffsetNumber rootoffnum, PruneState *prstate)
 	{
 		/*
 		 * We found a redirect item that doesn't point to a valid follow-on
-		 * item.  This can happen if the loop in tdeheap_page_prune caused us to
-		 * visit the dead successor of a redirect item before visiting the
+		 * item.  This can happen if the loop in tdeheap_page_prune caused us
+		 * to visit the dead successor of a redirect item before visiting the
 		 * redirect item.  We can clean up by setting the redirect item to
 		 * DEAD state.
 		 */
@@ -881,7 +882,7 @@ tdeheap_prune_record_prunable(PruneState *prstate, TransactionId xid)
 /* Record line pointer to be redirected */
 static void
 tdeheap_prune_record_redirect(PruneState *prstate,
-						   OffsetNumber offnum, OffsetNumber rdoffnum)
+							  OffsetNumber offnum, OffsetNumber rdoffnum)
 {
 	Assert(prstate->nredirected < MaxHeapTuplesPerPage);
 	prstate->redirected[prstate->nredirected * 2] = offnum;
@@ -915,7 +916,7 @@ tdeheap_prune_record_unused(PruneState *prstate, OffsetNumber offnum)
 	prstate->marked[offnum] = true;
 }
 
-void TdePageRepairFragmentation(Relation rel, Buffer buffer, Page page);
+void		TdePageRepairFragmentation(Relation rel, Buffer buffer, Page page);
 
 /*
  * Perform the actual page changes needed by tdeheap_page_prune.
@@ -924,9 +925,9 @@ void TdePageRepairFragmentation(Relation rel, Buffer buffer, Page page);
  */
 void
 tdeheap_page_prune_execute(Relation rel, Buffer buffer,
-						OffsetNumber *redirected, int nredirected,
-						OffsetNumber *nowdead, int ndead,
-						OffsetNumber *nowunused, int nunused)
+						   OffsetNumber *redirected, int nredirected,
+						   OffsetNumber *nowdead, int ndead,
+						   OffsetNumber *nowunused, int nunused)
 {
 	Page		page = (Page) BufferGetPage(buffer);
 	OffsetNumber *offnum;
@@ -1226,8 +1227,8 @@ tdeheap_get_root_tuples(Page page, OffsetNumber *root_offsets)
 	}
 }
 
-// TODO: move to own file so it can be autoupdated
-// FROM src/page/bufpage.c
+/*  TODO: move to own file so it can be autoupdated */
+/*  FROM src/page/bufpage.c */
 
 /*
  * Tuple defrag support for PageRepairFragmentation and PageIndexMultiDelete
@@ -1269,7 +1270,7 @@ typedef itemIdCompactData *itemIdCompact;
  *
  * Callers must ensure that nitems is > 0
  */
-static void // this is where it happens!
+static void //this is where it happens !
 pgtde_compactify_tuples(Relation rel, Buffer buffer, itemIdCompact itemidbase, int nitems, Page page, bool presorted)
 {
 	PageHeader	phdr = (PageHeader) page;
@@ -1539,7 +1540,7 @@ TdePageRepairFragmentation(Relation rel, Buffer buffer, Page page)
 	nunused = totallen = 0;
 	last_offset = pd_special;
 	for (i = FirstOffsetNumber; i <= nline; i++)
-	{ 
+	{
 		lp = PageGetItemId(page, i);
 		if (ItemIdIsUsed(lp))
 		{
