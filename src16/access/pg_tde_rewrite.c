@@ -156,7 +156,7 @@ typedef struct RewriteStateData
 	HTAB	   *rs_old_new_tid_map; /* unmatched B tuples */
 	HTAB	   *rs_logical_mappings;	/* logical remapping files */
 	uint32		rs_num_rewrite_mappings;	/* # in memory mappings */
-}			RewriteStateData;
+} RewriteStateData;
 
 /*
  * The lookup keys for the hash tables are tuple TID and xmin (we must check
@@ -238,7 +238,7 @@ static void logical_end_tdeheap_rewrite(RewriteState state);
  */
 RewriteState
 begin_tdeheap_rewrite(Relation old_heap, Relation new_heap, TransactionId oldest_xmin,
-				   TransactionId freeze_xid, MultiXactId cutoff_multi)
+					  TransactionId freeze_xid, MultiXactId cutoff_multi)
 {
 	RewriteState state;
 	MemoryContext rw_cxt;
@@ -362,7 +362,7 @@ end_tdeheap_rewrite(RewriteState state)
  */
 void
 rewrite_tdeheap_tuple(RewriteState state,
-				   HeapTuple old_tuple, HeapTuple new_tuple)
+					  HeapTuple old_tuple, HeapTuple new_tuple)
 {
 	MemoryContext old_cxt;
 	ItemPointerData old_tid;
@@ -392,10 +392,10 @@ rewrite_tdeheap_tuple(RewriteState state,
 	 * eligible xmin or xmax, so that future VACUUM effort can be saved.
 	 */
 	tdeheap_freeze_tuple(new_tuple->t_data,
-					  state->rs_old_rel->rd_rel->relfrozenxid,
-					  state->rs_old_rel->rd_rel->relminmxid,
-					  state->rs_freeze_xid,
-					  state->rs_cutoff_multi);
+						 state->rs_old_rel->rd_rel->relfrozenxid,
+						 state->rs_old_rel->rd_rel->relminmxid,
+						 state->rs_freeze_xid,
+						 state->rs_cutoff_multi);
 
 	/*
 	 * Invalid ctid means that ctid should point to the tuple itself. We'll
@@ -647,7 +647,7 @@ raw_tdeheap_insert(RewriteState state, HeapTuple tup)
 		options |= HEAP_INSERT_NO_LOGICAL;
 
 		heaptup = tdeheap_toast_insert_or_update(state->rs_new_rel, tup, NULL,
-											  options);
+												 options);
 	}
 	else
 		heaptup = tup;
@@ -676,8 +676,9 @@ raw_tdeheap_insert(RewriteState state, HeapTuple tup)
 		{
 			/*
 			 * Doesn't fit, so write out the existing page.  It always
-			 * contains a tuple.  Hence, unlike tdeheap_RelationGetBufferForTuple(),
-			 * enforce saveFreeSpace unconditionally.
+			 * contains a tuple.  Hence, unlike
+			 * tdeheap_RelationGetBufferForTuple(), enforce saveFreeSpace
+			 * unconditionally.
 			 */
 
 			/* XLOG stuff */
@@ -712,7 +713,7 @@ raw_tdeheap_insert(RewriteState state, HeapTuple tup)
 
 	/* And now we can insert the tuple into the page */
 	newoff = TDE_PageAddItem(state->rs_new_rel->rd_locator, heaptup->t_tableOid, state->rs_blockno, page, (Item) heaptup->t_data, heaptup->t_len,
-						 InvalidOffsetNumber, false, true);
+							 InvalidOffsetNumber, false, true);
 	if (newoff == InvalidOffsetNumber)
 		elog(ERROR, "failed to add tuple");
 
@@ -1035,7 +1036,7 @@ logical_rewrite_log_mapping(RewriteState state, TransactionId xid,
  */
 static void
 logical_rewrite_tdeheap_tuple(RewriteState state, ItemPointerData old_tid,
-						   HeapTuple new_tuple)
+							  HeapTuple new_tuple)
 {
 	ItemPointerData new_tid = new_tuple->t_self;
 	TransactionId cutoff = state->rs_logical_xmin;

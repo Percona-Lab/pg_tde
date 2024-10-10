@@ -245,8 +245,8 @@ tdeheap_visibilitymap_pin_ok(BlockNumber heapBlk, Buffer vmbuf)
  */
 void
 tdeheap_visibilitymap_set(Relation rel, BlockNumber heapBlk, Buffer heapBuf,
-				  XLogRecPtr recptr, Buffer vmBuf, TransactionId cutoff_xid,
-				  uint8 flags)
+						  XLogRecPtr recptr, Buffer vmBuf, TransactionId cutoff_xid,
+						  uint8 flags)
 {
 	BlockNumber mapBlock = HEAPBLK_TO_MAPBLOCK(heapBlk);
 	uint32		mapByte = HEAPBLK_TO_MAPBYTE(heapBlk);

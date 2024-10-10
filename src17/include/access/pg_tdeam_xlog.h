@@ -487,9 +487,9 @@ extern const char *tdeheap2_identify(uint8 info);
 extern void tdeheap_xlog_logical_rewrite(XLogReaderState *r);
 
 extern XLogRecPtr log_tdeheap_visible(Relation rel, Buffer tdeheap_buffer,
-								   Buffer vm_buffer,
-								   TransactionId snapshotConflictHorizon,
-								   uint8 vmflags);
+									  Buffer vm_buffer,
+									  TransactionId snapshotConflictHorizon,
+									  uint8 vmflags);
 
 /* in heapdesc.c, so it can be shared between frontend/backend code */
 extern void heap_xlog_deserialize_prune_and_freeze(char *cursor, uint8 flags,

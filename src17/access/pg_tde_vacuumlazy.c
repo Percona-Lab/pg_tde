@@ -233,7 +233,7 @@ typedef struct LVSavedErrInfo
 /* non-export function prototypes */
 static void lazy_scan_heap(LVRelState *vacrel);
 static bool tdeheap_vac_scan_next_block(LVRelState *vacrel, BlockNumber *blkno,
-									 bool *all_visible_according_to_vm);
+										bool *all_visible_according_to_vm);
 static void find_next_unskippable_block(LVRelState *vacrel, bool *skipsallvis);
 static bool lazy_scan_new_or_empty(LVRelState *vacrel, Buffer buf,
 								   BlockNumber blkno, Page page,
@@ -249,8 +249,8 @@ static void lazy_vacuum(LVRelState *vacrel);
 static bool lazy_vacuum_all_indexes(LVRelState *vacrel);
 static void lazy_vacuum_tdeheap_rel(LVRelState *vacrel);
 static void lazy_vacuum_tdeheap_page(LVRelState *vacrel, BlockNumber blkno,
-								  Buffer buffer, OffsetNumber *deadoffsets,
-								  int num_offsets, Buffer vmbuffer);
+									 Buffer buffer, OffsetNumber *deadoffsets,
+									 int num_offsets, Buffer vmbuffer);
 static bool lazy_check_wraparound_failsafe(LVRelState *vacrel);
 static void lazy_cleanup_all_indexes(LVRelState *vacrel);
 static IndexBulkDeleteResult *lazy_vacuum_one_index(Relation indrel,
@@ -272,7 +272,7 @@ static void dead_items_add(LVRelState *vacrel, BlockNumber blkno, OffsetNumber *
 static void dead_items_reset(LVRelState *vacrel);
 static void dead_items_cleanup(LVRelState *vacrel);
 static bool tdeheap_page_is_all_visible(LVRelState *vacrel, Buffer buf,
-									 TransactionId *visibility_cutoff_xid, bool *all_frozen);
+										TransactionId *visibility_cutoff_xid, bool *all_frozen);
 static void update_relstats_all_indexes(LVRelState *vacrel);
 static void vacuum_error_callback(void *arg);
 static void update_vacuum_error_info(LVRelState *vacrel,
@@ -296,7 +296,7 @@ static void restore_vacuum_error_info(LVRelState *vacrel,
  */
 void
 tdeheap_vacuum_rel(Relation rel, VacuumParams *params,
-				BufferAccessStrategy bstrategy)
+				   BufferAccessStrategy bstrategy)
 {
 	LVRelState *vacrel;
 	bool		verbose,
@@ -845,7 +845,7 @@ lazy_scan_heap(LVRelState *vacrel)
 	vacrel->next_unskippable_allvis = false;
 	vacrel->next_unskippable_vmbuffer = InvalidBuffer;
 
-	while  (tdeheap_vac_scan_next_block(vacrel, &blkno, &all_visible_according_to_vm))
+	while (tdeheap_vac_scan_next_block(vacrel, &blkno, &all_visible_according_to_vm))
 	{
 		Buffer		buf;
 		Page		page;
@@ -1087,7 +1087,7 @@ lazy_scan_heap(LVRelState *vacrel)
  */
 static bool
 tdeheap_vac_scan_next_block(LVRelState *vacrel, BlockNumber *blkno,
-						 bool *all_visible_according_to_vm)
+							bool *all_visible_according_to_vm)
 {
 	BlockNumber next_block;
 
@@ -1196,8 +1196,8 @@ find_next_unskippable_block(LVRelState *vacrel, bool *skipsallvis)
 	for (;;)
 	{
 		uint8		mapbits = tdeheap_visibilitymap_get_status(vacrel->rel,
-													   next_unskippable_block,
-													   &next_unskippable_vmbuffer);
+															   next_unskippable_block,
+															   &next_unskippable_vmbuffer);
 
 		next_unskippable_allvis = (mapbits & VISIBILITYMAP_ALL_VISIBLE) != 0;
 
@@ -1370,8 +1370,8 @@ lazy_scan_new_or_empty(LVRelState *vacrel, Buffer buf, BlockNumber blkno,
 
 			PageSetAllVisible(page);
 			tdeheap_visibilitymap_set(vacrel->rel, blkno, buf, InvalidXLogRecPtr,
-							  vmbuffer, InvalidTransactionId,
-							  VISIBILITYMAP_ALL_VISIBLE | VISIBILITYMAP_ALL_FROZEN);
+									  vmbuffer, InvalidTransactionId,
+									  VISIBILITYMAP_ALL_VISIBLE | VISIBILITYMAP_ALL_FROZEN);
 			END_CRIT_SECTION();
 		}
 
@@ -1440,9 +1440,9 @@ lazy_scan_prune(LVRelState *vacrel,
 		prune_options |= HEAP_PAGE_PRUNE_MARK_UNUSED_NOW;
 
 	tdeheap_page_prune_and_freeze(rel, buf, vacrel->vistest, prune_options,
-							   &vacrel->cutoffs, &presult, PRUNE_VACUUM_SCAN,
-							   &vacrel->offnum,
-							   &vacrel->NewRelfrozenXid, &vacrel->NewRelminMxid);
+								  &vacrel->cutoffs, &presult, PRUNE_VACUUM_SCAN,
+								  &vacrel->offnum,
+								  &vacrel->NewRelfrozenXid, &vacrel->NewRelminMxid);
 
 	Assert(MultiXactIdIsValid(vacrel->NewRelminMxid));
 	Assert(TransactionIdIsValid(vacrel->NewRelfrozenXid));
@@ -1458,10 +1458,10 @@ lazy_scan_prune(LVRelState *vacrel,
 	}
 
 	/*
-	 * VACUUM will call tdeheap_page_is_all_visible() during the second pass over
-	 * the heap to determine all_visible and all_frozen for the page -- this
-	 * is a specialized version of the logic from this function.  Now that
-	 * we've finished pruning and freezing, make sure that we're in total
+	 * VACUUM will call tdeheap_page_is_all_visible() during the second pass
+	 * over the heap to determine all_visible and all_frozen for the page --
+	 * this is a specialized version of the logic from this function.  Now
+	 * that we've finished pruning and freezing, make sure that we're in total
 	 * agreement with tdeheap_page_is_all_visible() using an assertion.
 	 */
 #ifdef USE_ASSERT_CHECKING
@@ -1474,7 +1474,7 @@ lazy_scan_prune(LVRelState *vacrel,
 		Assert(presult.lpdead_items == 0);
 
 		if (!tdeheap_page_is_all_visible(vacrel, buf,
-									  &debug_cutoff, &debug_all_frozen))
+										 &debug_cutoff, &debug_all_frozen))
 			Assert(false);
 
 		Assert(presult.all_frozen == debug_all_frozen);
@@ -1493,9 +1493,9 @@ lazy_scan_prune(LVRelState *vacrel,
 
 		/*
 		 * deadoffsets are collected incrementally in
-		 * tdeheap_page_prune_and_freeze() as each dead line pointer is recorded,
-		 * with an indeterminate order, but dead_items_add requires them to be
-		 * sorted.
+		 * tdeheap_page_prune_and_freeze() as each dead line pointer is
+		 * recorded, with an indeterminate order, but dead_items_add requires
+		 * them to be sorted.
 		 */
 		qsort(presult.deadoffsets, presult.lpdead_items, sizeof(OffsetNumber),
 			  cmpOffsetNumbers);
@@ -1543,22 +1543,22 @@ lazy_scan_prune(LVRelState *vacrel,
 		 * NB: If the heap page is all-visible but the VM bit is not set, we
 		 * don't need to dirty the heap page.  However, if checksums are
 		 * enabled, we do need to make sure that the heap page is dirtied
-		 * before passing it to tdeheap_visibilitymap_set(), because it may be logged.
-		 * Given that this situation should only happen in rare cases after a
-		 * crash, it is not worth optimizing.
+		 * before passing it to tdeheap_visibilitymap_set(), because it may be
+		 * logged. Given that this situation should only happen in rare cases
+		 * after a crash, it is not worth optimizing.
 		 */
 		PageSetAllVisible(page);
 		MarkBufferDirty(buf);
 		tdeheap_visibilitymap_set(vacrel->rel, blkno, buf, InvalidXLogRecPtr,
-						  vmbuffer, presult.vm_conflict_horizon,
-						  flags);
+								  vmbuffer, presult.vm_conflict_horizon,
+								  flags);
 	}
 
 	/*
 	 * As of PostgreSQL 9.2, the visibility map bit should never be set if the
 	 * page-level bit is clear.  However, it's possible that the bit got
-	 * cleared after tdeheap_vac_scan_next_block() was called, so we must recheck
-	 * with buffer lock before concluding that the VM is corrupt.
+	 * cleared after tdeheap_vac_scan_next_block() was called, so we must
+	 * recheck with buffer lock before concluding that the VM is corrupt.
 	 */
 	else if (all_visible_according_to_vm && !PageIsAllVisible(page) &&
 			 tdeheap_visibilitymap_get_status(vacrel->rel, blkno, &vmbuffer) != 0)
@@ -1566,7 +1566,7 @@ lazy_scan_prune(LVRelState *vacrel,
 		elog(WARNING, "page is not marked all-visible but visibility map bit is set in relation \"%s\" page %u",
 			 vacrel->relname, blkno);
 		tdeheap_visibilitymap_clear(vacrel->rel, blkno, vmbuffer,
-							VISIBILITYMAP_VALID_BITS);
+									VISIBILITYMAP_VALID_BITS);
 	}
 
 	/*
@@ -1590,7 +1590,7 @@ lazy_scan_prune(LVRelState *vacrel,
 		PageClearAllVisible(page);
 		MarkBufferDirty(buf);
 		tdeheap_visibilitymap_clear(vacrel->rel, blkno, vmbuffer,
-							VISIBILITYMAP_VALID_BITS);
+									VISIBILITYMAP_VALID_BITS);
 	}
 
 	/*
@@ -1621,9 +1621,9 @@ lazy_scan_prune(LVRelState *vacrel,
 		 */
 		Assert(!TransactionIdIsValid(presult.vm_conflict_horizon));
 		tdeheap_visibilitymap_set(vacrel->rel, blkno, buf, InvalidXLogRecPtr,
-						  vmbuffer, InvalidTransactionId,
-						  VISIBILITYMAP_ALL_VISIBLE |
-						  VISIBILITYMAP_ALL_FROZEN);
+								  vmbuffer, InvalidTransactionId,
+								  VISIBILITYMAP_ALL_VISIBLE |
+								  VISIBILITYMAP_ALL_FROZEN);
 	}
 }
 
@@ -1707,9 +1707,9 @@ lazy_scan_noprune(LVRelState *vacrel,
 
 		hastup = true;			/* page prevents rel truncation */
 		tupleheader = (HeapTupleHeader) PageGetItem(page, itemid);
-		if  (tdeheap_tuple_should_freeze(tupleheader, &vacrel->cutoffs,
-									 &NoFreezePageRelfrozenXid,
-									 &NoFreezePageRelminMxid))
+		if (tdeheap_tuple_should_freeze(tupleheader, &vacrel->cutoffs,
+										&NoFreezePageRelfrozenXid,
+										&NoFreezePageRelminMxid))
 		{
 			/* Tuple with XID < FreezeLimit (or MXID < MultiXactCutoff) */
 			if (vacrel->aggressive)
@@ -2059,9 +2059,9 @@ lazy_vacuum_all_indexes(LVRelState *vacrel)
 	/*
 	 * We delete all LP_DEAD items from the first heap pass in all indexes on
 	 * each call here (except calls where we choose to do the failsafe). This
-	 * makes the next call to lazy_vacuum_tdeheap_rel() safe (except in the event
-	 * of the failsafe triggering, which prevents the next call from taking
-	 * place).
+	 * makes the next call to lazy_vacuum_tdeheap_rel() safe (except in the
+	 * event of the failsafe triggering, which prevents the next call from
+	 * taking place).
 	 */
 	Assert(vacrel->num_index_scans > 0 ||
 		   vacrel->dead_items_info->num_items == vacrel->lpdead_items);
@@ -2147,7 +2147,7 @@ lazy_vacuum_tdeheap_rel(LVRelState *vacrel)
 								 vacrel->bstrategy);
 		LockBuffer(buf, BUFFER_LOCK_EXCLUSIVE);
 		lazy_vacuum_tdeheap_page(vacrel, blkno, buf, iter_result->offsets,
-							  iter_result->num_offsets, vmbuffer);
+								 iter_result->num_offsets, vmbuffer);
 
 		/* Now that we've vacuumed the page, record its available space */
 		page = BufferGetPage(buf);
@@ -2190,8 +2190,8 @@ lazy_vacuum_tdeheap_rel(LVRelState *vacrel)
  */
 static void
 lazy_vacuum_tdeheap_page(LVRelState *vacrel, BlockNumber blkno, Buffer buffer,
-					  OffsetNumber *deadoffsets, int num_offsets,
-					  Buffer vmbuffer)
+						 OffsetNumber *deadoffsets, int num_offsets,
+						 Buffer vmbuffer)
 {
 	Page		page = BufferGetPage(buffer);
 	OffsetNumber unused[MaxHeapTuplesPerPage];
@@ -2237,13 +2237,13 @@ lazy_vacuum_tdeheap_page(LVRelState *vacrel, BlockNumber blkno, Buffer buffer,
 	if (RelationNeedsWAL(vacrel->rel))
 	{
 		log_tdeheap_prune_and_freeze(vacrel->rel, buffer,
-								  InvalidTransactionId,
-								  false,	/* no cleanup lock required */
-								  PRUNE_VACUUM_CLEANUP,
-								  NULL, 0,	/* frozen */
-								  NULL, 0,	/* redirected */
-								  NULL, 0,	/* dead */
-								  unused, nunused);
+									 InvalidTransactionId,
+									 false, /* no cleanup lock required */
+									 PRUNE_VACUUM_CLEANUP,
+									 NULL, 0,	/* frozen */
+									 NULL, 0,	/* redirected */
+									 NULL, 0,	/* dead */
+									 unused, nunused);
 	}
 
 	/*
@@ -2261,8 +2261,8 @@ lazy_vacuum_tdeheap_page(LVRelState *vacrel, BlockNumber blkno, Buffer buffer,
 	 * emitted.
 	 */
 	Assert(!PageIsAllVisible(page));
-	if  (tdeheap_page_is_all_visible(vacrel, buffer, &visibility_cutoff_xid,
-								 &all_frozen))
+	if (tdeheap_page_is_all_visible(vacrel, buffer, &visibility_cutoff_xid,
+									&all_frozen))
 	{
 		uint8		flags = VISIBILITYMAP_ALL_VISIBLE;
 
@@ -2274,7 +2274,7 @@ lazy_vacuum_tdeheap_page(LVRelState *vacrel, BlockNumber blkno, Buffer buffer,
 
 		PageSetAllVisible(page);
 		tdeheap_visibilitymap_set(vacrel->rel, blkno, buffer, InvalidXLogRecPtr,
-						  vmbuffer, visibility_cutoff_xid, flags);
+								  vmbuffer, visibility_cutoff_xid, flags);
 	}
 
 	/* Revert to the previous phase information for error traceback */
@@ -2953,8 +2953,8 @@ dead_items_cleanup(LVRelState *vacrel)
  */
 static bool
 tdeheap_page_is_all_visible(LVRelState *vacrel, Buffer buf,
-						 TransactionId *visibility_cutoff_xid,
-						 bool *all_frozen)
+							TransactionId *visibility_cutoff_xid,
+							bool *all_frozen)
 {
 	Page		page = BufferGetPage(buf);
 	BlockNumber blockno = BufferGetBlockNumber(buf);

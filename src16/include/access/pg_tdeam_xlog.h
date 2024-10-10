@@ -414,8 +414,8 @@ extern const char *tdeheap2_identify(uint8 info);
 extern void tdeheap_xlog_logical_rewrite(XLogReaderState *r);
 
 extern XLogRecPtr log_tdeheap_visible(Relation rel, Buffer tdeheap_buffer,
-								   Buffer vm_buffer,
-								   TransactionId snapshotConflictHorizon,
-								   uint8 vmflags);
+									  Buffer vm_buffer,
+									  TransactionId snapshotConflictHorizon,
+									  uint8 vmflags);
 
 #endif							/* PG_TDEAM_XLOG_H */

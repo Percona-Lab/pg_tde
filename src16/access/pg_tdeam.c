@@ -81,30 +81,30 @@
 
 
 static HeapTuple tdeheap_prepare_insert(Relation relation, HeapTuple tup,
-									 TransactionId xid, CommandId cid, int options);
+										TransactionId xid, CommandId cid, int options);
 static XLogRecPtr log_tdeheap_update(Relation reln, Buffer oldbuf,
-								  Buffer newbuf, HeapTuple oldtup,
-								  HeapTuple newtup, HeapTuple old_key_tuple,
-								  bool all_visible_cleared, bool new_all_visible_cleared);
+									 Buffer newbuf, HeapTuple oldtup,
+									 HeapTuple newtup, HeapTuple old_key_tuple,
+									 bool all_visible_cleared, bool new_all_visible_cleared);
 static Bitmapset *HeapDetermineColumnsInfo(Relation relation,
 										   Bitmapset *interesting_cols,
 										   Bitmapset *external_cols,
 										   HeapTuple oldtup, HeapTuple newtup,
 										   bool *has_external);
 static bool tdeheap_acquire_tuplock(Relation relation, ItemPointer tid,
-								 LockTupleMode mode, LockWaitPolicy wait_policy,
-								 bool *have_tuple_lock);
+									LockTupleMode mode, LockWaitPolicy wait_policy,
+									bool *have_tuple_lock);
 static void compute_new_xmax_infomask(TransactionId xmax, uint16 old_infomask,
 									  uint16 old_infomask2, TransactionId add_to_xmax,
 									  LockTupleMode mode, bool is_update,
 									  TransactionId *result_xmax, uint16 *result_infomask,
 									  uint16 *result_infomask2);
 static TM_Result tdeheap_lock_updated_tuple(Relation rel, HeapTuple tuple,
-										 ItemPointer ctid, TransactionId xid,
-										 LockTupleMode mode);
+											ItemPointer ctid, TransactionId xid,
+											LockTupleMode mode);
 static int	tdeheap_log_freeze_plan(HeapTupleFreeze *tuples, int ntuples,
-								 xl_tdeheap_freeze_plan *plans_out,
-								 OffsetNumber *offsets_out);
+									xl_tdeheap_freeze_plan *plans_out,
+									OffsetNumber *offsets_out);
 static void GetMultiXactIdHintBits(MultiXactId multi, uint16 *new_infomask,
 								   uint16 *new_infomask2);
 static TransactionId MultiXactIdGetUpdateXid(TransactionId xmax,
@@ -562,7 +562,7 @@ tdeheapgettup_initial_block(HeapScanDesc scan, ScanDirection dir)
  */
 static Page
 tdeheapgettup_start_page(HeapScanDesc scan, ScanDirection dir, int *linesleft,
-					  OffsetNumber *lineoff)
+						 OffsetNumber *lineoff)
 {
 	Page		page;
 
@@ -595,7 +595,7 @@ tdeheapgettup_start_page(HeapScanDesc scan, ScanDirection dir, int *linesleft,
  */
 static inline Page
 tdeheapgettup_continue_page(HeapScanDesc scan, ScanDirection dir, int *linesleft,
-						 OffsetNumber *lineoff)
+							OffsetNumber *lineoff)
 {
 	Page		page;
 
@@ -734,9 +734,9 @@ tdeheapgettup_advance_block(HeapScanDesc scan, BlockNumber block, ScanDirection 
  */
 static void
 tdeheapgettup(HeapScanDesc scan,
-		   ScanDirection dir,
-		   int nkeys,
-		   ScanKey key)
+			  ScanDirection dir,
+			  int nkeys,
+			  ScanKey key)
 {
 	HeapTuple	tuple = &(scan->rs_ctup);
 	BlockNumber block;
@@ -849,9 +849,9 @@ continue_page:
  */
 static void
 tdeheapgettup_pagemode(HeapScanDesc scan,
-					ScanDirection dir,
-					int nkeys,
-					ScanKey key)
+					   ScanDirection dir,
+					   int nkeys,
+					   ScanKey key)
 {
 	HeapTuple	tuple = &(scan->rs_ctup);
 	BlockNumber block;
@@ -943,9 +943,9 @@ continue_page:
 
 TableScanDesc
 tdeheap_beginscan(Relation relation, Snapshot snapshot,
-			   int nkeys, ScanKey key,
-			   ParallelTableScanDesc parallel_scan,
-			   uint32 flags)
+				  int nkeys, ScanKey key,
+				  ParallelTableScanDesc parallel_scan,
+				  uint32 flags)
 {
 	HeapScanDesc scan;
 
@@ -1013,8 +1013,8 @@ tdeheap_beginscan(Relation relation, Snapshot snapshot,
 		scan->rs_parallelworkerdata = NULL;
 
 	/*
-	 * we do this here instead of in initscan() because tdeheap_rescan also calls
-	 * initscan() and we don't want to allocate memory again
+	 * we do this here instead of in initscan() because tdeheap_rescan also
+	 * calls initscan() and we don't want to allocate memory again
 	 */
 	if (nkeys > 0)
 		scan->rs_base.rs_key = (ScanKey) palloc(sizeof(ScanKeyData) * nkeys);
@@ -1028,7 +1028,7 @@ tdeheap_beginscan(Relation relation, Snapshot snapshot,
 
 void
 tdeheap_rescan(TableScanDesc sscan, ScanKey key, bool set_params,
-			bool allow_strat, bool allow_sync, bool allow_pagemode)
+			   bool allow_strat, bool allow_sync, bool allow_pagemode)
 {
 	HeapScanDesc scan = (HeapScanDesc) sscan;
 
@@ -1114,11 +1114,11 @@ tdeheap_getnext(TableScanDesc sscan, ScanDirection direction)
 				 errmsg_internal("only pg_tde AM is supported")));
 
 	/*
-	 * We don't expect direct calls to tdeheap_getnext with valid CheckXidAlive
-	 * for catalog or regular tables.  See detailed comments in xact.c where
-	 * these variables are declared.  Normally we have such a check at tableam
-	 * level API but this is called from many places so we need to ensure it
-	 * here.
+	 * We don't expect direct calls to tdeheap_getnext with valid
+	 * CheckXidAlive for catalog or regular tables.  See detailed comments in
+	 * xact.c where these variables are declared.  Normally we have such a
+	 * check at tableam level API but this is called from many places so we
+	 * need to ensure it here.
 	 */
 	if (unlikely(TransactionIdIsValid(CheckXidAlive) && !bsysscan))
 		elog(ERROR, "unexpected tdeheap_getnext call during logical decoding");
@@ -1127,10 +1127,10 @@ tdeheap_getnext(TableScanDesc sscan, ScanDirection direction)
 
 	if (scan->rs_base.rs_flags & SO_ALLOW_PAGEMODE)
 		tdeheapgettup_pagemode(scan, direction,
-							scan->rs_base.rs_nkeys, scan->rs_base.rs_key);
+							   scan->rs_base.rs_nkeys, scan->rs_base.rs_key);
 	else
 		tdeheapgettup(scan, direction,
-				   scan->rs_base.rs_nkeys, scan->rs_base.rs_key);
+					  scan->rs_base.rs_nkeys, scan->rs_base.rs_key);
 
 	if (scan->rs_ctup.t_data == NULL)
 		return NULL;
@@ -1171,13 +1171,13 @@ tdeheap_getnextslot(TableScanDesc sscan, ScanDirection direction, TupleTableSlot
 	pgstat_count_tdeheap_getnext(scan->rs_base.rs_rd);
 
 	PGTdeExecStoreBufferHeapTuple(sscan->rs_rd, &scan->rs_ctup, slot,
-							 scan->rs_cbuf);
+								  scan->rs_cbuf);
 	return true;
 }
 
 void
 tdeheap_set_tidrange(TableScanDesc sscan, ItemPointer mintid,
-				  ItemPointer maxtid)
+					 ItemPointer maxtid)
 {
 	HeapScanDesc scan = (HeapScanDesc) sscan;
 	BlockNumber startBlk;
@@ -1250,7 +1250,7 @@ tdeheap_set_tidrange(TableScanDesc sscan, ItemPointer mintid,
 
 bool
 tdeheap_getnextslot_tidrange(TableScanDesc sscan, ScanDirection direction,
-						  TupleTableSlot *slot)
+							 TupleTableSlot *slot)
 {
 	HeapScanDesc scan = (HeapScanDesc) sscan;
 	ItemPointer mintid = &sscan->rs_mintid;
@@ -1271,10 +1271,10 @@ tdeheap_getnextslot_tidrange(TableScanDesc sscan, ScanDirection direction,
 		}
 
 		/*
-		 * tdeheap_set_tidrange will have used tdeheap_setscanlimits to limit the
-		 * range of pages we scan to only ones that can contain the TID range
-		 * we're scanning for.  Here we must filter out any tuples from these
-		 * pages that are outside of that range.
+		 * tdeheap_set_tidrange will have used tdeheap_setscanlimits to limit
+		 * the range of pages we scan to only ones that can contain the TID
+		 * range we're scanning for.  Here we must filter out any tuples from
+		 * these pages that are outside of that range.
 		 */
 		if (ItemPointerCompare(&scan->rs_ctup.t_self, mintid) < 0)
 		{
@@ -1357,10 +1357,10 @@ tdeheap_getnextslot_tidrange(TableScanDesc sscan, ScanDirection direction,
  */
 bool
 tdeheap_fetch(Relation relation,
-		   Snapshot snapshot,
-		   HeapTuple tuple,
-		   Buffer *userbuf,
-		   bool keep_buf)
+			  Snapshot snapshot,
+			  HeapTuple tuple,
+			  Buffer *userbuf,
+			  bool keep_buf)
 {
 	ItemPointer tid = &(tuple->t_self);
 	ItemId		lp;
@@ -1478,8 +1478,8 @@ tdeheap_fetch(Relation relation,
  */
 bool
 tdeheap_hot_search_buffer(ItemPointer tid, Relation relation, Buffer buffer,
-					   Snapshot snapshot, HeapTuple heapTuple,
-					   bool *all_dead, bool first_call)
+						  Snapshot snapshot, HeapTuple heapTuple,
+						  bool *all_dead, bool first_call)
 {
 	Page		page = BufferGetPage(buffer);
 	TransactionId prev_xmax = InvalidTransactionId;
@@ -1630,7 +1630,7 @@ tdeheap_hot_search_buffer(ItemPointer tid, Relation relation, Buffer buffer,
  */
 void
 tdeheap_get_latest_tid(TableScanDesc sscan,
-					ItemPointer tid)
+					   ItemPointer tid)
 {
 	Relation	relation = sscan->rs_rd;
 	Snapshot	snapshot = sscan->rs_snapshot;
@@ -1842,7 +1842,7 @@ ReleaseBulkInsertStatePin(BulkInsertState bistate)
  */
 void
 tdeheap_insert(Relation relation, HeapTuple tup, CommandId cid,
-			int options, BulkInsertState bistate)
+			   int options, BulkInsertState bistate)
 {
 	TransactionId xid = GetCurrentTransactionId();
 	HeapTuple	heaptup;
@@ -1867,9 +1867,9 @@ tdeheap_insert(Relation relation, HeapTuple tup, CommandId cid,
 	 * this will also pin the requisite visibility map page.
 	 */
 	buffer = tdeheap_RelationGetBufferForTuple(relation, heaptup->t_len,
-									   InvalidBuffer, options, bistate,
-									   &vmbuffer, NULL,
-									   0);
+											   InvalidBuffer, options, bistate,
+											   &vmbuffer, NULL,
+											   0);
 
 	/*
 	 * We're about to do the actual insert -- but check for conflict first, to
@@ -1888,26 +1888,26 @@ tdeheap_insert(Relation relation, HeapTuple tup, CommandId cid,
 	 */
 	CheckForSerializableConflictIn(relation, NULL, InvalidBlockNumber);
 
-	/* 
-	 * Make sure relation keys in the cahce to avoid pallocs in
-	 * the critical section. 
-	*/
+	/*
+	 * Make sure relation keys in the cahce to avoid pallocs in the critical
+	 * section.
+	 */
 	GetRelationKey(relation->rd_locator);
 
 	/* NO EREPORT(ERROR) from here till changes are logged */
 	START_CRIT_SECTION();
 
 	tdeheap_RelationPutHeapTuple(relation, buffer, heaptup,
-						(options & HEAP_INSERT_TDE_NO_ENCRYPT) == 0,
-						(options & HEAP_INSERT_SPECULATIVE) != 0);
+								 (options & HEAP_INSERT_TDE_NO_ENCRYPT) == 0,
+								 (options & HEAP_INSERT_SPECULATIVE) != 0);
 
 	if (PageIsAllVisible(BufferGetPage(buffer)))
 	{
 		all_visible_cleared = true;
 		PageClearAllVisible(BufferGetPage(buffer));
 		tdeheap_visibilitymap_clear(relation,
-							ItemPointerGetBlockNumber(&(heaptup->t_self)),
-							vmbuffer, VISIBILITYMAP_VALID_BITS);
+									ItemPointerGetBlockNumber(&(heaptup->t_self)),
+									vmbuffer, VISIBILITYMAP_VALID_BITS);
 	}
 
 	/*
@@ -1991,6 +1991,7 @@ tdeheap_insert(Relation relation, HeapTuple tup, CommandId cid,
 		XLogRegisterBufData(0, (char *) &xlhdr, SizeOfHeapHeader);
 		/* register encrypted tuple data from the buffer */
 		PageHeader	phdr = (PageHeader) BufferGetPage(buffer);
+
 		/* PG73FORMAT: write bitmap [+ padding] [+ oid] + data */
 		XLogRegisterBufData(0,
 							((char *) phdr) + phdr->pd_upper + SizeofHeapTupleHeader,
@@ -2040,7 +2041,7 @@ tdeheap_insert(Relation relation, HeapTuple tup, CommandId cid,
  */
 static HeapTuple
 tdeheap_prepare_insert(Relation relation, HeapTuple tup, TransactionId xid,
-					CommandId cid, int options)
+					   CommandId cid, int options)
 {
 	/*
 	 * To allow parallel inserts, we need to ensure that they are safe to be
@@ -2120,7 +2121,7 @@ tdeheap_multi_insert_pages(HeapTuple *heaptuples, int done, int ntuples, Size sa
  */
 void
 tdeheap_multi_insert(Relation relation, TupleTableSlot **slots, int ntuples,
-				  CommandId cid, int options, BulkInsertState bistate)
+					 CommandId cid, int options, BulkInsertState bistate)
 {
 	TransactionId xid = GetCurrentTransactionId();
 	HeapTuple  *heaptuples;
@@ -2154,7 +2155,7 @@ tdeheap_multi_insert(Relation relation, TupleTableSlot **slots, int ntuples,
 		slots[i]->tts_tableOid = RelationGetRelid(relation);
 		tuple->t_tableOid = slots[i]->tts_tableOid;
 		heaptuples[i] = tdeheap_prepare_insert(relation, tuple, xid, cid,
-											options);
+											   options);
 	}
 
 	/*
@@ -2195,8 +2196,8 @@ tdeheap_multi_insert(Relation relation, TupleTableSlot **slots, int ntuples,
 		/*
 		 * Compute number of pages needed to fit the to-be-inserted tuples in
 		 * the worst case.  This will be used to determine how much to extend
-		 * the relation by in tdeheap_RelationGetBufferForTuple(), if needed.  If we
-		 * filled a prior page from scratch, we can just update our last
+		 * the relation by in tdeheap_RelationGetBufferForTuple(), if needed.
+		 * If we filled a prior page from scratch, we can just update our last
 		 * computation, but if we started with a partially filled page,
 		 * recompute from scratch, the number of potentially required pages
 		 * can vary due to tuples needing to fit onto the page, page headers
@@ -2205,7 +2206,7 @@ tdeheap_multi_insert(Relation relation, TupleTableSlot **slots, int ntuples,
 		if (ndone == 0 || !starting_with_empty_page)
 		{
 			npages = tdeheap_multi_insert_pages(heaptuples, ndone, ntuples,
-											 saveFreeSpace);
+												saveFreeSpace);
 			npages_used = 0;
 		}
 		else
@@ -2219,9 +2220,9 @@ tdeheap_multi_insert(Relation relation, TupleTableSlot **slots, int ntuples,
 		 * empty page. See all_frozen_set below.
 		 */
 		buffer = tdeheap_RelationGetBufferForTuple(relation, heaptuples[ndone]->t_len,
-										   InvalidBuffer, options, bistate,
-										   &vmbuffer, NULL,
-										   npages - npages_used);
+												   InvalidBuffer, options, bistate,
+												   &vmbuffer, NULL,
+												   npages - npages_used);
 		page = BufferGetPage(buffer);
 
 		starting_with_empty_page = PageGetMaxOffsetNumber(page) == 0;
@@ -2229,18 +2230,18 @@ tdeheap_multi_insert(Relation relation, TupleTableSlot **slots, int ntuples,
 		if (starting_with_empty_page && (options & HEAP_INSERT_FROZEN))
 			all_frozen_set = true;
 
-		/* 
-		 * Make sure relation keys in the cahce to avoid pallocs in
-		 * the critical section. 
-		*/
+		/*
+		 * Make sure relation keys in the cahce to avoid pallocs in the
+		 * critical section.
+		 */
 		GetRelationKey(relation->rd_locator);
 
 		/* NO EREPORT(ERROR) from here till changes are logged */
 		START_CRIT_SECTION();
 
 		/*
-		 * tdeheap_RelationGetBufferForTuple has ensured that the first tuple fits.
-		 * Put that on the page, and then as many other tuples as fit.
+		 * tdeheap_RelationGetBufferForTuple has ensured that the first tuple
+		 * fits. Put that on the page, and then as many other tuples as fit.
 		 */
 		tdeheap_RelationPutHeapTuple(relation, buffer, heaptuples[ndone], true, false);
 
@@ -2280,14 +2281,15 @@ tdeheap_multi_insert(Relation relation, TupleTableSlot **slots, int ntuples,
 			all_visible_cleared = true;
 			PageClearAllVisible(page);
 			tdeheap_visibilitymap_clear(relation,
-								BufferGetBlockNumber(buffer),
-								vmbuffer, VISIBILITYMAP_VALID_BITS);
+										BufferGetBlockNumber(buffer),
+										vmbuffer, VISIBILITYMAP_VALID_BITS);
 		}
 		else if (all_frozen_set)
 			PageSetAllVisible(page);
 
 		/*
-		 * XXX Should we set PageSetPrunable on this page ? See tdeheap_insert()
+		 * XXX Should we set PageSetPrunable on this page ? See
+		 * tdeheap_insert()
 		 */
 
 		MarkBufferDirty(buffer);
@@ -2358,7 +2360,8 @@ tdeheap_multi_insert(Relation relation, TupleTableSlot **slots, int ntuples,
 				tuphdr->t_hoff = heaptup->t_data->t_hoff;
 
 				/* Point to an encrypted tuple data in the Buffer */
-				char *tup_data_on_page = (char *) page + ItemIdGetOffset(PageGetItemId(page, heaptup->t_self.ip_posid));
+				char	   *tup_data_on_page = (char *) page + ItemIdGetOffset(PageGetItemId(page, heaptup->t_self.ip_posid));
+
 				/* write bitmap [+ padding] [+ oid] + data */
 				datalen = heaptup->t_len - SizeofHeapTupleHeader;
 				memcpy(scratchptr,
@@ -2375,8 +2378,8 @@ tdeheap_multi_insert(Relation relation, TupleTableSlot **slots, int ntuples,
 
 			/*
 			 * Signal that this is the last xl_tdeheap_multi_insert record
-			 * emitted by this call to tdeheap_multi_insert(). Needed for logical
-			 * decoding so it knows when to cleanup temporary data.
+			 * emitted by this call to tdeheap_multi_insert(). Needed for
+			 * logical decoding so it knows when to cleanup temporary data.
 			 */
 			if (ndone + nthispage == ntuples)
 				xlrec->flags |= XLH_INSERT_LAST_IN_MULTI;
@@ -2425,9 +2428,9 @@ tdeheap_multi_insert(Relation relation, TupleTableSlot **slots, int ntuples,
 			 * violates visibility rules.
 			 */
 			tdeheap_visibilitymap_set(relation, BufferGetBlockNumber(buffer), buffer,
-							  InvalidXLogRecPtr, vmbuffer,
-							  InvalidTransactionId,
-							  VISIBILITYMAP_ALL_VISIBLE | VISIBILITYMAP_ALL_FROZEN);
+									  InvalidXLogRecPtr, vmbuffer,
+									  InvalidTransactionId,
+									  VISIBILITYMAP_ALL_VISIBLE | VISIBILITYMAP_ALL_FROZEN);
 		}
 
 		UnlockReleaseBuffer(buffer);
@@ -2548,8 +2551,8 @@ xmax_infomask_changed(uint16 new_infomask, uint16 old_infomask)
  */
 TM_Result
 tdeheap_delete(Relation relation, ItemPointer tid,
-			CommandId cid, Snapshot crosscheck, bool wait,
-			TM_FailureData *tmfd, bool changingPart)
+			   CommandId cid, Snapshot crosscheck, bool wait,
+			   TM_FailureData *tmfd, bool changingPart)
 {
 	TM_Result	result;
 	TransactionId xid = GetCurrentTransactionId();
@@ -2665,7 +2668,7 @@ l1:
 				 */
 				if (!current_is_member)
 					tdeheap_acquire_tuplock(relation, &(tp.t_self), LockTupleExclusive,
-										 LockWaitBlock, &have_tuple_lock);
+											LockWaitBlock, &have_tuple_lock);
 
 				/* wait for multixact */
 				MultiXactIdWait((MultiXactId) xwait, MultiXactStatusUpdate, infomask,
@@ -2706,7 +2709,7 @@ l1:
 			 */
 			LockBuffer(buffer, BUFFER_LOCK_UNLOCK);
 			tdeheap_acquire_tuplock(relation, &(tp.t_self), LockTupleExclusive,
-								 LockWaitBlock, &have_tuple_lock);
+									LockWaitBlock, &have_tuple_lock);
 			XactLockTableWait(xwait, relation, &(tp.t_self), XLTW_Delete);
 			LockBuffer(buffer, BUFFER_LOCK_EXCLUSIVE);
 
@@ -2794,9 +2797,9 @@ l1:
 	/*
 	 * Compute replica identity tuple before entering the critical section so
 	 * we don't PANIC upon a memory allocation failure.
-	 * 
-	 * ExtractReplicaIdentity has to get a decrypted tuple, otherwise it 
-	 * won't be able to extract varlen attributes.
+	 *
+	 * ExtractReplicaIdentity has to get a decrypted tuple, otherwise it won't
+	 * be able to extract varlen attributes.
 	 */
 	decrypted_tuple = tdeheap_copytuple(&tp);
 	PG_TDE_DECRYPT_TUPLE(&tp, decrypted_tuple, GetRelationKey(relation->rd_locator));
@@ -2834,7 +2837,7 @@ l1:
 		all_visible_cleared = true;
 		PageClearAllVisible(page);
 		tdeheap_visibilitymap_clear(relation, BufferGetBlockNumber(buffer),
-							vmbuffer, VISIBILITYMAP_VALID_BITS);
+									vmbuffer, VISIBILITYMAP_VALID_BITS);
 	}
 
 	/* store transaction information of xact deleting the tuple */
@@ -2941,9 +2944,9 @@ l1:
 	}
 	else if (HeapTupleHasExternal(&tp))
 	{
-		/* 
-		 * tdeheap_toast_delete needs decypted tuple to extract external 
-		 * attributes 
+		/*
+		 * tdeheap_toast_delete needs decypted tuple to extract external
+		 * attributes
 		 */
 		tdeheap_toast_delete(relation, decrypted_tuple, false);
 	}
@@ -2989,9 +2992,9 @@ simple_tdeheap_delete(Relation relation, ItemPointer tid)
 	TM_FailureData tmfd;
 
 	result = tdeheap_delete(relation, tid,
-						 GetCurrentCommandId(true), InvalidSnapshot,
-						 true /* wait for commit */ ,
-						 &tmfd, false /* changingPart */ );
+							GetCurrentCommandId(true), InvalidSnapshot,
+							true /* wait for commit */ ,
+							&tmfd, false /* changingPart */ );
 	switch (result)
 	{
 		case TM_SelfModified:
@@ -3030,9 +3033,9 @@ simple_tdeheap_delete(Relation relation, ItemPointer tid)
  */
 TM_Result
 tdeheap_update(Relation relation, ItemPointer otid, HeapTuple newtup,
-			CommandId cid, Snapshot crosscheck, bool wait,
-			TM_FailureData *tmfd, LockTupleMode *lockmode,
-			TU_UpdateIndexes *update_indexes)
+			   CommandId cid, Snapshot crosscheck, bool wait,
+			   TM_FailureData *tmfd, LockTupleMode *lockmode,
+			   TU_UpdateIndexes *update_indexes)
 {
 	TM_Result	result;
 	TransactionId xid = GetCurrentTransactionId();
@@ -3045,7 +3048,7 @@ tdeheap_update(Relation relation, ItemPointer otid, HeapTuple newtup,
 	ItemId		lp;
 	HeapTupleData oldtup;
 	HeapTupleData oldtup_decrypted;
-	void*		oldtup_data;
+	void	   *oldtup_data;
 	HeapTuple	heaptup;
 	HeapTuple	old_key_tuple = NULL;
 	bool		old_key_copied = false;
@@ -3150,18 +3153,19 @@ tdeheap_update(Relation relation, ItemPointer otid, HeapTuple newtup,
 	oldtup.t_self = *otid;
 	/* decrypt the old tuple */
 	{
-		char* new_ptr = NULL;
+		char	   *new_ptr = NULL;
+
 		new_ptr = MemoryContextAlloc(CurTransactionContext, oldtup.t_len);
 		memcpy(new_ptr, oldtup.t_data, oldtup.t_data->t_hoff);
-		// only neccessary field
-		oldtup_decrypted.t_data = (HeapTupleHeader)new_ptr;
+		/* only neccessary field */
+		oldtup_decrypted.t_data = (HeapTupleHeader) new_ptr;
 	}
 	PG_TDE_DECRYPT_TUPLE(&oldtup, &oldtup_decrypted,
-							GetRelationKey(relation->rd_locator));
+						 GetRelationKey(relation->rd_locator));
 
-	// change field in oldtup now.
-	// We can't do it before, as PG_TDE_DECRYPT_TUPLE uses t_data address in 
-	// calculations
+	/* change field in oldtup now. */
+	/* We can't do it before, as PG_TDE_DECRYPT_TUPLE uses t_data address in  */
+	/* calculations */
 	oldtup.t_data = oldtup_decrypted.t_data;
 
 	/* the new tuple is ready, except for this: */
@@ -3300,7 +3304,7 @@ l2:
 				 */
 				if (!current_is_member)
 					tdeheap_acquire_tuplock(relation, &(oldtup.t_self), *lockmode,
-										 LockWaitBlock, &have_tuple_lock);
+											LockWaitBlock, &have_tuple_lock);
 
 				/* wait for multixact */
 				MultiXactIdWait((MultiXactId) xwait, mxact_status, infomask,
@@ -3385,7 +3389,7 @@ l2:
 			 */
 			LockBuffer(buffer, BUFFER_LOCK_UNLOCK);
 			tdeheap_acquire_tuplock(relation, &(oldtup.t_self), *lockmode,
-								 LockWaitBlock, &have_tuple_lock);
+									LockWaitBlock, &have_tuple_lock);
 			XactLockTableWait(xwait, relation, &oldtup.t_self,
 							  XLTW_Update);
 			checked_lockers = true;
@@ -3631,7 +3635,7 @@ l2:
 		 */
 		if (PageIsAllVisible(page) &&
 			tdeheap_visibilitymap_clear(relation, block, vmbuffer,
-								VISIBILITYMAP_ALL_FROZEN))
+										VISIBILITYMAP_ALL_FROZEN))
 			cleared_all_frozen = true;
 
 		MarkBufferDirty(buffer);
@@ -3688,15 +3692,16 @@ l2:
 		 * some other backend trying to get the same two locks in the other
 		 * order, we must be consistent about the order we get the locks in.
 		 * We use the rule "lock the lower-numbered page of the relation
-		 * first".  To implement this, we must do tdeheap_RelationGetBufferForTuple
-		 * while not holding the lock on the old page, and we must rely on it
-		 * to get the locks on both pages in the correct order.
+		 * first".  To implement this, we must do
+		 * tdeheap_RelationGetBufferForTuple while not holding the lock on the
+		 * old page, and we must rely on it to get the locks on both pages in
+		 * the correct order.
 		 *
 		 * Another consideration is that we need visibility map page pin(s) if
 		 * we will have to clear the all-visible flag on either page.  If we
-		 * call tdeheap_RelationGetBufferForTuple, we rely on it to acquire any such
-		 * pins; but if we don't, we have to handle that here.  Hence we need
-		 * a loop.
+		 * call tdeheap_RelationGetBufferForTuple, we rely on it to acquire
+		 * any such pins; but if we don't, we have to handle that here.  Hence
+		 * we need a loop.
 		 */
 		for (;;)
 		{
@@ -3704,9 +3709,9 @@ l2:
 			{
 				/* It doesn't fit, must use tdeheap_RelationGetBufferForTuple. */
 				newbuf = tdeheap_RelationGetBufferForTuple(relation, heaptup->t_len,
-												   buffer, 0, NULL,
-												   &vmbuffer_new, &vmbuffer,
-												   0);
+														   buffer, 0, NULL,
+														   &vmbuffer_new, &vmbuffer,
+														   0);
 				/* We're all done. */
 				break;
 			}
@@ -3805,10 +3810,10 @@ l2:
 										   id_has_external,
 										   &old_key_copied);
 
-	/* 
-	 * Make sure relation keys in the cahce to avoid pallocs in
-	 * the critical section. 
-	*/
+	/*
+	 * Make sure relation keys in the cahce to avoid pallocs in the critical
+	 * section.
+	 */
 	GetRelationKey(relation->rd_locator);
 
 	/* NO EREPORT(ERROR) from here till changes are logged */
@@ -3823,8 +3828,8 @@ l2:
 	 *
 	 * XXX Should we set hint on newbuf as well?  If the transaction aborts,
 	 * there would be a prunable tuple in the newbuf; but for now we choose
-	 * not to optimize for aborts.  Note that tdeheap_xlog_update must be kept in
-	 * sync if this decision changes.
+	 * not to optimize for aborts.  Note that tdeheap_xlog_update must be kept
+	 * in sync if this decision changes.
 	 */
 	PageSetPrunable(page, xid);
 
@@ -3845,7 +3850,7 @@ l2:
 		HeapTupleClearHeapOnly(newtup);
 	}
 
-	tdeheap_RelationPutHeapTuple(relation, newbuf, heaptup, true, false); /* insert new tuple */
+	tdeheap_RelationPutHeapTuple(relation, newbuf, heaptup, true, false);	/* insert new tuple */
 
 
 	/* Clear obsolete visibility flags, possibly set by ourselves above... */
@@ -3867,14 +3872,14 @@ l2:
 		all_visible_cleared = true;
 		PageClearAllVisible(BufferGetPage(buffer));
 		tdeheap_visibilitymap_clear(relation, BufferGetBlockNumber(buffer),
-							vmbuffer, VISIBILITYMAP_VALID_BITS);
+									vmbuffer, VISIBILITYMAP_VALID_BITS);
 	}
 	if (newbuf != buffer && PageIsAllVisible(BufferGetPage(newbuf)))
 	{
 		all_visible_cleared_new = true;
 		PageClearAllVisible(BufferGetPage(newbuf));
 		tdeheap_visibilitymap_clear(relation, BufferGetBlockNumber(newbuf),
-							vmbuffer_new, VISIBILITYMAP_VALID_BITS);
+									vmbuffer_new, VISIBILITYMAP_VALID_BITS);
 	}
 
 	if (newbuf != buffer)
@@ -3897,10 +3902,10 @@ l2:
 		}
 
 		recptr = log_tdeheap_update(relation, buffer,
-								 newbuf, &oldtup, heaptup,
-								 old_key_tuple,
-								 all_visible_cleared,
-								 all_visible_cleared_new);
+									newbuf, &oldtup, heaptup,
+									old_key_tuple,
+									all_visible_cleared,
+									all_visible_cleared_new);
 		if (newbuf != buffer)
 		{
 			PageSetLSN(BufferGetPage(newbuf), recptr);
@@ -3986,7 +3991,7 @@ l2:
  */
 static bool
 tdeheap_attr_equals(TupleDesc tupdesc, int attrnum, Datum value1, Datum value2,
-				 bool isnull1, bool isnull2)
+					bool isnull1, bool isnull2)
 {
 	Form_pg_attribute att;
 
@@ -4090,7 +4095,7 @@ HeapDetermineColumnsInfo(Relation relation,
 		value1 = tdeheap_getattr(oldtup, attrnum, tupdesc, &isnull1);
 		value2 = tdeheap_getattr(newtup, attrnum, tupdesc, &isnull2);
 		if (!tdeheap_attr_equals(tupdesc, attrnum, value1,
-							  value2, isnull1, isnull2))
+								 value2, isnull1, isnull2))
 		{
 			modified = bms_add_member(modified, attidx);
 			continue;
@@ -4126,16 +4131,16 @@ HeapDetermineColumnsInfo(Relation relation,
  */
 void
 simple_tdeheap_update(Relation relation, ItemPointer otid, HeapTuple tup,
-				   TU_UpdateIndexes *update_indexes)
+					  TU_UpdateIndexes *update_indexes)
 {
 	TM_Result	result;
 	TM_FailureData tmfd;
 	LockTupleMode lockmode;
 
 	result = tdeheap_update(relation, otid, tup,
-						 GetCurrentCommandId(true), InvalidSnapshot,
-						 true /* wait for commit */ ,
-						 &tmfd, &lockmode, update_indexes);
+							GetCurrentCommandId(true), InvalidSnapshot,
+							true /* wait for commit */ ,
+							&tmfd, &lockmode, update_indexes);
 	switch (result)
 	{
 		case TM_SelfModified:
@@ -4215,9 +4220,9 @@ get_mxact_status_for_lock(LockTupleMode mode, bool is_update)
  */
 TM_Result
 tdeheap_lock_tuple(Relation relation, HeapTuple tuple,
-				CommandId cid, LockTupleMode mode, LockWaitPolicy wait_policy,
-				bool follow_updates,
-				Buffer *buffer, TM_FailureData *tmfd)
+				   CommandId cid, LockTupleMode mode, LockWaitPolicy wait_policy,
+				   bool follow_updates,
+				   Buffer *buffer, TM_FailureData *tmfd)
 {
 	TM_Result	result;
 	ItemPointer tid = &(tuple->t_self);
@@ -4433,8 +4438,8 @@ l3:
 					TM_Result	res;
 
 					res = tdeheap_lock_updated_tuple(relation, tuple, &t_ctid,
-												  GetCurrentTransactionId(),
-												  mode);
+													 GetCurrentTransactionId(),
+													 mode);
 					if (res != TM_Ok)
 					{
 						result = res;
@@ -4586,7 +4591,7 @@ l3:
 			 */
 			if (!skip_tuple_lock &&
 				!tdeheap_acquire_tuplock(relation, tid, mode, wait_policy,
-									  &have_tuple_lock))
+										 &have_tuple_lock))
 			{
 				/*
 				 * This can only happen if wait_policy is Skip and the lock
@@ -4680,8 +4685,8 @@ l3:
 				TM_Result	res;
 
 				res = tdeheap_lock_updated_tuple(relation, tuple, &t_ctid,
-											  GetCurrentTransactionId(),
-											  mode);
+												 GetCurrentTransactionId(),
+												 mode);
 				if (res != TM_Ok)
 				{
 					result = res;
@@ -4833,7 +4838,7 @@ failed:
 	/* Clear only the all-frozen bit on visibility map if needed */
 	if (PageIsAllVisible(page) &&
 		tdeheap_visibilitymap_clear(relation, block, vmbuffer,
-							VISIBILITYMAP_ALL_FROZEN))
+									VISIBILITYMAP_ALL_FROZEN))
 		cleared_all_frozen = true;
 
 
@@ -4913,7 +4918,7 @@ out_unlocked:
  */
 static bool
 tdeheap_acquire_tuplock(Relation relation, ItemPointer tid, LockTupleMode mode,
-					 LockWaitPolicy wait_policy, bool *have_tuple_lock)
+						LockWaitPolicy wait_policy, bool *have_tuple_lock)
 {
 	if (*have_tuple_lock)
 		return true;
@@ -5334,7 +5339,7 @@ test_lockmode_for_conflict(MultiXactStatus status, TransactionId xid,
  */
 static TM_Result
 tdeheap_lock_updated_tuple_rec(Relation rel, ItemPointer tid, TransactionId xid,
-							LockTupleMode mode)
+							   LockTupleMode mode)
 {
 	TM_Result	result;
 	ItemPointerData tupid;
@@ -5587,7 +5592,7 @@ l4:
 
 		if (PageIsAllVisible(BufferGetPage(buf)) &&
 			tdeheap_visibilitymap_clear(rel, block, vmbuffer,
-								VISIBILITYMAP_ALL_FROZEN))
+										VISIBILITYMAP_ALL_FROZEN))
 			cleared_all_frozen = true;
 
 		START_CRIT_SECTION();
@@ -5679,7 +5684,7 @@ out_unlocked:
  */
 static TM_Result
 tdeheap_lock_updated_tuple(Relation rel, HeapTuple tuple, ItemPointer ctid,
-						TransactionId xid, LockTupleMode mode)
+						   TransactionId xid, LockTupleMode mode)
 {
 	/*
 	 * If the tuple has not been updated, or has moved into another partition
@@ -5896,8 +5901,8 @@ tdeheap_abort_speculative(Relation relation, ItemPointer tid)
 	/*
 	 * XLOG stuff
 	 *
-	 * The WAL records generated here match tdeheap_delete().  The same recovery
-	 * routines are used.
+	 * The WAL records generated here match tdeheap_delete().  The same
+	 * recovery routines are used.
 	 */
 	if (RelationNeedsWAL(relation))
 	{
@@ -6450,9 +6455,9 @@ FreezeMultiXactId(MultiXactId multi, uint16 t_infomask,
  */
 bool
 tdeheap_prepare_freeze_tuple(HeapTupleHeader tuple,
-						  const struct VacuumCutoffs *cutoffs,
-						  HeapPageFreeze *pagefrz,
-						  HeapTupleFreeze *frz, bool *totally_frozen)
+							 const struct VacuumCutoffs *cutoffs,
+							 HeapPageFreeze *pagefrz,
+							 HeapTupleFreeze *frz, bool *totally_frozen)
 {
 	bool		xmin_already_frozen = false,
 				xmax_already_frozen = false;
@@ -6705,8 +6710,8 @@ tdeheap_prepare_freeze_tuple(HeapTupleHeader tuple,
 		 */
 		pagefrz->freeze_required =
 			tdeheap_tuple_should_freeze(tuple, cutoffs,
-									 &pagefrz->NoFreezePageRelfrozenXid,
-									 &pagefrz->NoFreezePageRelminMxid);
+										&pagefrz->NoFreezePageRelfrozenXid,
+										&pagefrz->NoFreezePageRelminMxid);
 	}
 
 	/* Tell caller if this tuple has a usable freeze plan set in *frz */
@@ -6753,8 +6758,8 @@ tdeheap_execute_freeze_tuple(HeapTupleHeader tuple, HeapTupleFreeze *frz)
  */
 void
 tdeheap_freeze_execute_prepared(Relation rel, Buffer buffer,
-							 TransactionId snapshotConflictHorizon,
-							 HeapTupleFreeze *tuples, int ntuples)
+								TransactionId snapshotConflictHorizon,
+								HeapTupleFreeze *tuples, int ntuples)
 {
 	Page		page = BufferGetPage(buffer);
 
@@ -6763,9 +6768,10 @@ tdeheap_freeze_execute_prepared(Relation rel, Buffer buffer,
 	/*
 	 * Perform xmin/xmax XID status sanity checks before critical section.
 	 *
-	 * tdeheap_prepare_freeze_tuple doesn't perform these checks directly because
-	 * pg_xact lookups are relatively expensive.  They shouldn't be repeated
-	 * by successive VACUUMs that each decide against freezing the same page.
+	 * tdeheap_prepare_freeze_tuple doesn't perform these checks directly
+	 * because pg_xact lookups are relatively expensive.  They shouldn't be
+	 * repeated by successive VACUUMs that each decide against freezing the
+	 * same page.
 	 */
 	for (int i = 0; i < ntuples; i++)
 	{
@@ -6888,8 +6894,8 @@ tdeheap_log_freeze_cmp(const void *arg1, const void *arg2)
 		return 1;
 
 	/*
-	 * tdeheap_log_freeze_eq would consider these tuple-wise plans to be equal.
-	 * (So the tuples will share a single canonical freeze plan.)
+	 * tdeheap_log_freeze_eq would consider these tuple-wise plans to be
+	 * equal. (So the tuples will share a single canonical freeze plan.)
 	 *
 	 * We tiebreak on page offset number to keep each freeze plan's page
 	 * offset number array individually sorted. (Unnecessary, but be tidy.)
@@ -6947,8 +6953,8 @@ tdeheap_log_freeze_new_plan(xl_tdeheap_freeze_plan *plan, HeapTupleFreeze *frz)
  */
 static int
 tdeheap_log_freeze_plan(HeapTupleFreeze *tuples, int ntuples,
-					 xl_tdeheap_freeze_plan *plans_out,
-					 OffsetNumber *offsets_out)
+						xl_tdeheap_freeze_plan *plans_out,
+						OffsetNumber *offsets_out)
 {
 	int			nplans = 0;
 
@@ -6965,7 +6971,7 @@ tdeheap_log_freeze_plan(HeapTupleFreeze *tuples, int ntuples,
 			tdeheap_log_freeze_new_plan(plans_out, frz);
 			nplans++;
 		}
-		else if  (tdeheap_log_freeze_eq(plans_out, frz))
+		else if (tdeheap_log_freeze_eq(plans_out, frz))
 		{
 			/* tup matches open canonical plan -- include tup in it */
 			Assert(offsets_out[i - 1] < frz->offset);
@@ -7004,8 +7010,8 @@ tdeheap_log_freeze_plan(HeapTupleFreeze *tuples, int ntuples,
  */
 bool
 tdeheap_freeze_tuple(HeapTupleHeader tuple,
-				  TransactionId relfrozenxid, TransactionId relminmxid,
-				  TransactionId FreezeLimit, TransactionId MultiXactCutoff)
+					 TransactionId relfrozenxid, TransactionId relminmxid,
+					 TransactionId FreezeLimit, TransactionId MultiXactCutoff)
 {
 	HeapTupleFreeze frz;
 	bool		do_freeze;
@@ -7027,7 +7033,7 @@ tdeheap_freeze_tuple(HeapTupleHeader tuple,
 	pagefrz.NoFreezePageRelminMxid = MultiXactCutoff;
 
 	do_freeze = tdeheap_prepare_freeze_tuple(tuple, &cutoffs,
-										  &pagefrz, &frz, &totally_frozen);
+											 &pagefrz, &frz, &totally_frozen);
 
 	/*
 	 * Note that because this is not a WAL-logged operation, we don't need to
@@ -7465,9 +7471,9 @@ tdeheap_tuple_needs_eventual_freeze(HeapTupleHeader tuple)
  */
 bool
 tdeheap_tuple_should_freeze(HeapTupleHeader tuple,
-						 const struct VacuumCutoffs *cutoffs,
-						 TransactionId *NoFreezePageRelfrozenXid,
-						 MultiXactId *NoFreezePageRelminMxid)
+							const struct VacuumCutoffs *cutoffs,
+							TransactionId *NoFreezePageRelfrozenXid,
+							MultiXactId *NoFreezePageRelminMxid)
 {
 	TransactionId xid;
 	MultiXactId multi;
@@ -7913,8 +7919,8 @@ tdeheap_index_delete_tuples(Relation rel, TM_IndexDeleteOp *delstate)
 			HeapTupleData heapTuple;
 
 			/* Are any tuples from this HOT chain non-vacuumable? */
-			if  (tdeheap_hot_search_buffer(&tmp, rel, buf, &SnapshotNonVacuumable,
-									   &heapTuple, NULL, true))
+			if (tdeheap_hot_search_buffer(&tmp, rel, buf, &SnapshotNonVacuumable,
+										  &heapTuple, NULL, true))
 				continue;		/* can't delete entry */
 
 			/* Caller will delete, since whole HOT chain is vacuumable */
@@ -8405,13 +8411,13 @@ bottomup_sort_and_shrink(TM_IndexDeleteOp *delstate)
  */
 XLogRecPtr
 log_tdeheap_visible(Relation rel, Buffer tdeheap_buffer, Buffer vm_buffer,
-				 TransactionId snapshotConflictHorizon, uint8 vmflags)
+					TransactionId snapshotConflictHorizon, uint8 vmflags)
 {
 	xl_tdeheap_visible xlrec;
 	XLogRecPtr	recptr;
 	uint8		flags;
 
-	Assert(BufferIsValid (tdeheap_buffer));
+	Assert(BufferIsValid(tdeheap_buffer));
 	Assert(BufferIsValid(vm_buffer));
 
 	xlrec.snapshotConflictHorizon = snapshotConflictHorizon;
@@ -8439,9 +8445,9 @@ log_tdeheap_visible(Relation rel, Buffer tdeheap_buffer, Buffer vm_buffer,
  */
 static XLogRecPtr
 log_tdeheap_update(Relation reln, Buffer oldbuf,
-				Buffer newbuf, HeapTuple oldtup, HeapTuple newtup,
-				HeapTuple old_key_tuple,
-				bool all_visible_cleared, bool new_all_visible_cleared)
+				   Buffer newbuf, HeapTuple oldtup, HeapTuple newtup,
+				   HeapTuple old_key_tuple,
+				   bool all_visible_cleared, bool new_all_visible_cleared)
 {
 	xl_tdeheap_update xlrec;
 	xl_tdeheap_header xlhdr;
@@ -8785,9 +8791,10 @@ ExtractReplicaIdentity(Relation relation, HeapTuple tp, bool key_required,
 
 	/*
 	 * If there's no defined replica identity columns, treat as !key_required.
-	 * (This case should not be reachable from tdeheap_update, since that should
-	 * calculate key_required accurately.  But tdeheap_delete just passes
-	 * constant true for key_required, so we can hit this case in deletes.)
+	 * (This case should not be reachable from tdeheap_update, since that
+	 * should calculate key_required accurately.  But tdeheap_delete just
+	 * passes constant true for key_required, so we can hit this case in
+	 * deletes.)
 	 */
 	if (bms_is_empty(idattrs))
 		return NULL;
@@ -8889,9 +8896,9 @@ tdeheap_xlog_prune(XLogReaderState *record)
 		/* Update all line pointers per the record, and repair fragmentation */
 		reln = CreateFakeRelcacheEntry(rlocator);
 		tdeheap_page_prune_execute(reln, buffer,
-								redirected, nredirected,
-								nowdead, ndead,
-								nowunused, nunused);
+								   redirected, nredirected,
+								   nowdead, ndead,
+								   nowunused, nunused);
 
 		/*
 		 * Note: we don't worry about updating the page's prunability hints.
@@ -9121,7 +9128,7 @@ tdeheap_xlog_visible(XLogReaderState *record)
 		tdeheap_visibilitymap_pin(reln, blkno, &vmbuffer);
 
 		tdeheap_visibilitymap_set(reln, blkno, InvalidBuffer, lsn, vmbuffer,
-						  xlrec->snapshotConflictHorizon, vmbits);
+								  xlrec->snapshotConflictHorizon, vmbits);
 
 		ReleaseBuffer(vmbuffer);
 		FreeFakeRelcacheEntry(reln);
@@ -9383,7 +9390,7 @@ tdeheap_xlog_insert(XLogReaderState *record)
 		htup->t_ctid = target_tid;
 
 		if (TDE_PageAddItem(target_locator, target_locator.spcOid, blkno, page, (Item) htup, newlen, xlrec->offnum,
-						true, true) == InvalidOffsetNumber)
+							true, true) == InvalidOffsetNumber)
 			elog(PANIC, "failed to add tuple");
 
 		freespace = PageGetHeapFreeSpace(page); /* needed to update FSM below */
@@ -10177,8 +10184,8 @@ tdeheap_mask(char *pagedata, BlockNumber blkno)
 			page_htup->t_choice.t_heap.t_field3.t_cid = MASK_MARKER;
 
 			/*
-			 * For a speculative tuple, tdeheap_insert() does not set ctid in the
-			 * caller-passed heap tuple itself, leaving the ctid field to
+			 * For a speculative tuple, tdeheap_insert() does not set ctid in
+			 * the caller-passed heap tuple itself, leaving the ctid field to
 			 * contain a speculative token value - a per-backend monotonically
 			 * increasing identifier. Besides, it does not WAL-log ctid under
 			 * any circumstances.
