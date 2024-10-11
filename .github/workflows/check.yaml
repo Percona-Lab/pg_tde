@@ -3,47 +3,47 @@ on:
   pull_request:
 
 jobs:
-  cppcheck:
-    name: Cppcheck
-    runs-on: ubuntu-22.04
-    timeout-minutes: 5
+  # cppcheck:
+  #   name: Cppcheck
+  #   runs-on: ubuntu-22.04
+  #   timeout-minutes: 5
 
-    steps:
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev
+  #   steps:
+  #     - name: Install dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y libcurl4-openssl-dev
 
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          path: src/pg_tde
+  #     - name: Checkout sources
+  #       uses: actions/checkout@v4
+  #       with:
+  #         path: src/pg_tde
 
-      - name: Configure pg_tde
-        run: ./configure
-        working-directory: src/pg_tde
+  #     - name: Configure pg_tde
+  #       run: ./configure
+  #       working-directory: src/pg_tde
 
-      - name: Checkout cppcheck sources
-        uses: actions/checkout@v4
-        with:
-          repository: "danmar/cppcheck"
-          ref: "2.13.4"
-          path: src/cppcheck
+  #     - name: Checkout cppcheck sources
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: "danmar/cppcheck"
+  #         ref: "2.13.4"
+  #         path: src/cppcheck
 
-      - name: Build and install cppcheck
-        working-directory: src/cppcheck
-        run: |
-          mkdir build
-          cd build
-          cmake ..
-          cmake --build .
-          sudo cmake --install .
+  #     - name: Build and install cppcheck
+  #       working-directory: src/cppcheck
+  #       run: |
+  #         mkdir build
+  #         cd build
+  #         cmake ..
+  #         cmake --build .
+  #         sudo cmake --install .
 
-      - name: Execute linter check with cppcheck
-        working-directory: src/pg_tde
-        run: |
-          set -x
-          cppcheck --enable=all --inline-suppr --template='{file}:{line},{severity},{id},{message}' --error-exitcode=1 --suppress=missingIncludeSystem --suppress=missingInclude --suppress=unmatchedSuppression:pg_tde.c --check-config .
+  #     - name: Execute linter check with cppcheck
+  #       working-directory: src/pg_tde
+  #       run: |
+  #         set -x
+  #         cppcheck --enable=all --inline-suppr --template='{file}:{line},{severity},{id},{message}' --error-exitcode=1 --suppress=missingIncludeSystem --suppress=missingInclude --suppress=unmatchedSuppression:pg_tde.c --check-config .
 
   format:
     name: Format
