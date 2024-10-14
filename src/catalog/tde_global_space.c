@@ -67,7 +67,7 @@ TDEInitGlobalKeys(const char *dir)
 		if (dir != NULL)
 			pg_tde_set_globalspace_dir(dir);
 
-		ikey = pg_tde_get_key_from_file(&GLOBAL_SPACE_RLOCATOR(XLOG_TDE_OID));
+		ikey = pg_tde_get_key_from_file(&GLOBAL_SPACE_RLOCATOR(XLOG_TDE_OID), false);
 
 		/*
 		 * Internal Key should be in the TopMemmoryContext because of SSL
@@ -134,7 +134,7 @@ init_default_keyring(void)
 static void
 init_keys(void)
 {
-	InternalKey int_key;
+	InternalKey int_key = {.rel_type = TDE_IKEY_REL_GLOBAL};
 	RelKeyData *rel_key_data;
 	RelKeyData *enc_rel_key_data;
 	RelFileLocator *rlocator;
