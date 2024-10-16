@@ -648,7 +648,7 @@ pg_tdeam_relation_set_new_filelocator(Relation rel,
 		ereport(DEBUG1,
 			(errmsg("creating key file for relation %s", RelationGetRelationName(rel))));
 
-		pg_tde_create_key_map_entry(newrlocator);
+		pg_tde_create_key_map_entry(newrlocator, TDE_IKEY_REL_BASIC);
 	}
 }
 
@@ -707,6 +707,7 @@ pg_tdeam_relation_copy_data(Relation rel, const RelFileLocator *newrlocator)
 		}
 	}
 
+	pg_tde_move_rel_key(newrlocator, &rel->rd_locator);
 
 	/* drop old relation, and close new one */
 	RelationDropStorage(rel);

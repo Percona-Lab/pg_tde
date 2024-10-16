@@ -137,7 +137,7 @@ static void finalize_key_rotation(char *m_path_old, char *k_path_old, char *m_pa
  * Generate an encrypted key for the relation and store it in the keymap file.
  */
 RelKeyData*
-pg_tde_create_key_map_entry(const RelFileLocator *newrlocator)
+pg_tde_create_key_map_entry(const RelFileLocator *newrlocator, InternalKeyRelType rel_type)
 {
 	InternalKey int_key;
 	RelKeyData *rel_key_data;
@@ -169,6 +169,8 @@ pg_tde_create_key_map_entry(const RelFileLocator *newrlocator)
 
 		return NULL;
 	}
+
+	int_key.rel_type = rel_type;
 
 	/* Encrypt the key */
 	rel_key_data = tde_create_rel_key(newrlocator->relNumber, &int_key, &principal_key->keyInfo);
@@ -462,10 +464,10 @@ pg_tde_write_one_keydata(int fd, int32 key_index, RelKeyData *enc_rel_key_data)
 	Assert(fd != -1);
 
 	/* Calculate the writing position in the file. */
-	curr_pos = (key_index * INTERNAL_KEY_LEN) + TDE_FILE_HEADER_SIZE;
+	curr_pos = (key_index * INTERNAL_KEY_DAT_LEN) + TDE_FILE_HEADER_SIZE;
 
 	/* TODO: pgstat_report_wait_start / pgstat_report_wait_end */
-	if (pg_pwrite(fd, &enc_rel_key_data->internal_key, INTERNAL_KEY_LEN, curr_pos) != INTERNAL_KEY_LEN)
+	if (pg_pwrite(fd, &enc_rel_key_data->internal_key, INTERNAL_KEY_DAT_LEN, curr_pos) != INTERNAL_KEY_DAT_LEN)
 	{
 		ereport(FATAL,
 				(errcode_for_file_access(),
@@ -555,24 +557,23 @@ pg_tde_delete_key_map_entry(const RelFileLocator *rlocator)
  *
  * The offset allows us to simply seek to the desired location and mark the entry
  * as MAP_ENTRY_FREE without needing any further processing.
+ * 
+ * A caller should hold an EXCLUSIVE tde_lwlock_enc_keys lock.
  */
 void
 pg_tde_free_key_map_entry(const RelFileLocator *rlocator, off_t offset)
 {
 	int32	key_index = 0;
-	LWLock	*lock_files = tde_lwlock_enc_keys();
 	char	db_map_path[MAXPGPATH] = {0};
-	char	db_keydata_path[MAXPGPATH] = {0};
+	off_t	start = 0;
 
 	Assert(rlocator);
 
 	/* Get the file paths */
-	pg_tde_set_db_file_paths(rlocator->dbOid, rlocator->spcOid, db_map_path, db_keydata_path);
+	pg_tde_set_db_file_paths(rlocator->dbOid, rlocator->spcOid, db_map_path, NULL);
 
 	/* Remove the map entry if found */
-	LWLockAcquire(lock_files, LW_EXCLUSIVE);
 	key_index = pg_tde_process_map_entry(rlocator, db_map_path, &offset, true);
-	LWLockRelease(lock_files);
 
 	if (key_index == -1)
 	{
@@ -582,7 +583,17 @@ pg_tde_free_key_map_entry(const RelFileLocator *rlocator, off_t offset)
 						rlocator->relNumber,
 						db_map_path)));
 
-		return;
+	}
+	/* 
+	 * Remove TDE files it was the last TDE relation in a custom tablespace.
+	 * DROP TABLESPACE needs an empty dir.
+	 */
+	if (rlocator->spcOid != GLOBALTABLESPACE_OID && 
+			rlocator->spcOid != DEFAULTTABLESPACE_OID &&
+			pg_tde_process_map_entry(NULL, db_map_path, &start, false) == -1)
+	{
+		pg_tde_delete_tde_files(rlocator->dbOid, rlocator->spcOid);
+		cleanup_key_provider_info(rlocator->dbOid, rlocator->spcOid);
 	}
 }
 
@@ -822,6 +833,87 @@ FINALIZE:
 	return !is_err;
 }
 
+/* 
+ * Move relation's key to the new physical location and cache it with the new
+ * relfilenode. It recreates *.map and *.dat files with the old principal key
+ * and re-encrypted with the new relfilenode internal key. And copies the
+ * old keyring to the new location.
+ * Needed by ALTER TABLE SET TABLESPACE for example.
+ */
+bool
+pg_tde_move_rel_key(const RelFileLocator *newrlocator, const RelFileLocator *oldrlocator)
+{
+	RelKeyData 	*rel_key;
+	RelKeyData 	*enc_key;
+	TDEPrincipalKey *principal_key;
+	KeyringProvideRecord provider_rec;
+    GenericKeyring *keyring;
+	XLogRelKey	xlrec;
+	char		db_map_path[MAXPGPATH] = {0};
+	char		db_keydata_path[MAXPGPATH] = {0};
+	off_t		offset = 0;
+	int32		key_index = 0;
+
+	pg_tde_set_db_file_paths(oldrlocator->dbOid, oldrlocator->spcOid, db_map_path, db_keydata_path);
+
+	LWLockAcquire(tde_lwlock_enc_keys(), LW_EXCLUSIVE);
+
+	principal_key = GetPrincipalKey(oldrlocator->dbOid, oldrlocator->spcOid, LW_EXCLUSIVE);
+	Assert(principal_key);
+
+	/* 
+	 * Copy kering provider info.
+	 *
+	 * TODO: we can potentially avoid moving keyring and key tde files keeping 
+	 * these files always in dbOid+MyDatabaseTableSpace path. But the
+	 * background writer isn't aware of MyDatabaseTableSpace hence it won't
+	 * work with SMGR -> tde_heap. Revisit this after chages in SMGR (mdcreate)
+	 * interface.
+	 */
+	keyring = GetKeyProviderByID(principal_key->keyInfo.keyringId, oldrlocator->dbOid, oldrlocator->spcOid);
+	Assert(keyring);
+	memcpy(provider_rec.provider_name, keyring->provider_name, sizeof(keyring->provider_name));
+	provider_rec.provider_type = keyring->type;
+	memcpy(provider_rec.options, keyring->options, sizeof(keyring->options));
+	copy_key_provider_info(&provider_rec, newrlocator->dbOid, newrlocator->spcOid, true);
+
+	principal_key->keyInfo.keyringId = provider_rec.provider_id;
+
+	key_index = pg_tde_process_map_entry(oldrlocator, db_map_path, &offset, false);
+	Assert(key_index != -1);
+	/* 
+	 * Re-encrypt relation key. We don't use internal_key cache to avoid locking
+	 * complications.
+	 */
+	enc_key = pg_tde_read_keydata(db_keydata_path, key_index, principal_key);
+	rel_key = tde_decrypt_rel_key(principal_key, enc_key, oldrlocator);
+	enc_key = tde_encrypt_rel_key(principal_key, rel_key, newrlocator);
+
+	xlrec.rlocator = *newrlocator;
+	xlrec.relKey = *enc_key;
+	xlrec.pkInfo = principal_key->keyInfo;
+	XLogBeginInsert();
+	XLogRegisterData((char *) &xlrec, sizeof(xlrec));
+	XLogInsert(RM_TDERMGR_ID, XLOG_TDE_ADD_RELATION_KEY);
+
+	pg_tde_write_key_map_entry(newrlocator, enc_key, &principal_key->keyInfo);
+	pg_tde_put_key_into_cache(newrlocator->relNumber, rel_key);
+
+	XLogBeginInsert();
+	XLogRegisterData((char *) oldrlocator, sizeof(RelFileLocator));
+	XLogInsert(RM_TDERMGR_ID, XLOG_TDE_FREE_MAP_ENTRY);
+
+	/* Clean-up map/dat entries. It will also remove physical files (*.map,
+	 * *.dat and keyring) if it was the last tde_heap_basic relation in the old
+	 * locator AND it was a custom tablespace.
+	 */
+	pg_tde_free_key_map_entry(oldrlocator, offset);
+
+	LWLockRelease(tde_lwlock_enc_keys());
+
+	pfree(enc_key);
+}
+
 #endif		/* !FRONTEND */
 
 /*
@@ -829,7 +921,7 @@ FINALIZE:
  * reads the key data from the keydata file.
  */
 RelKeyData *
-pg_tde_get_key_from_file(const RelFileLocator *rlocator)
+pg_tde_get_key_from_file(const RelFileLocator *rlocator, bool no_map_ok)
 {
 	int32		key_index = 0;
 	TDEPrincipalKey	*principal_key;
@@ -867,6 +959,11 @@ pg_tde_get_key_from_file(const RelFileLocator *rlocator)
 	/* Get the file paths */
 	pg_tde_set_db_file_paths(rlocator->dbOid, rlocator->spcOid, db_map_path, db_keydata_path);
 
+	if (no_map_ok && access(db_map_path, F_OK) == -1)
+	{
+		LWLockRelease(lock_pk);
+		return NULL;
+	}
 	/* Read the map entry and get the index of the relation key */
 	key_index = pg_tde_process_map_entry(rlocator, db_map_path, &offset, false);
 
@@ -988,7 +1085,7 @@ pg_tde_process_map_entry(const RelFileLocator *rlocator, char *db_map_path, off_
 
 /*
  * Open the file and read the required key data from file and return encrypted key.
- * The caller should hold 
+ * The caller should hold a tde_lwlock_enc_keys lock
  */
 static RelKeyData *
 pg_tde_read_keydata(char *db_keydata_path, int32 key_index, TDEPrincipalKey *principal_key)
@@ -1088,7 +1185,7 @@ pg_tde_open_file_basic(char *tde_filename, int fileFlags, bool ignore_missing)
 	fd = BasicOpenFile(tde_filename, fileFlags | PG_BINARY);
 	if (fd < 0 && !(errno == ENOENT && ignore_missing == true))
 	{
-		ereport(ERROR,
+		ereport(PANIC,
 				(errcode_for_file_access(),
 				 errmsg("could not open tde file \"%s\": %m",
 						tde_filename)));
@@ -1167,7 +1264,6 @@ pg_tde_read_one_map_entry(File map_file, const RelFileLocator *rlocator, int fla
 	return found;
 }
 
-
 /*
  * Reads a single keydata from the file.
  */
@@ -1183,10 +1279,10 @@ pg_tde_read_one_keydata(int keydata_fd, int32 key_index, TDEPrincipalKey *princi
 	strncpy(enc_rel_key_data->principal_key_id.name, principal_key->keyInfo.keyId.name, PRINCIPAL_KEY_NAME_LEN);
 
 	/* Calculate the reading position in the file. */
-	read_pos += (key_index * INTERNAL_KEY_LEN) + TDE_FILE_HEADER_SIZE;
+	read_pos += (key_index * INTERNAL_KEY_DAT_LEN) + TDE_FILE_HEADER_SIZE;
 
 	/* Check if the file has a valid key */
-	if ((read_pos + INTERNAL_KEY_LEN) > lseek(keydata_fd, 0, SEEK_END))
+	if ((read_pos + INTERNAL_KEY_DAT_LEN) > lseek(keydata_fd, 0, SEEK_END))
 	{
 		char db_keydata_path[MAXPGPATH] = {0};
 		pg_tde_set_db_file_paths(principal_key->keyInfo.databaseId, principal_key->keyInfo.tablespaceId,  NULL, db_keydata_path);
@@ -1199,7 +1295,7 @@ pg_tde_read_one_keydata(int keydata_fd, int32 key_index, TDEPrincipalKey *princi
 
 	/* Read the encrypted key */
 	/* TODO: pgstat_report_wait_start / pgstat_report_wait_end */
-	if (pg_pread(keydata_fd, &(enc_rel_key_data->internal_key), INTERNAL_KEY_LEN, read_pos) != INTERNAL_KEY_LEN)
+	if (pg_pread(keydata_fd, &(enc_rel_key_data->internal_key), INTERNAL_KEY_DAT_LEN, read_pos) != INTERNAL_KEY_DAT_LEN)
 	{
 		char db_keydata_path[MAXPGPATH] = {0};
 		pg_tde_set_db_file_paths(principal_key->keyInfo.databaseId, principal_key->keyInfo.tablespaceId, NULL, db_keydata_path);
@@ -1261,9 +1357,12 @@ pg_tde_get_principal_key_info(Oid dbOid, Oid spcOid)
  * Returns TDE key for a given relation.
  * First it looks in a cache. If nothing found in the cache, it reads data from
  * the tde fork file and populates cache.
+ * 
+ * If no_map_ok is true - return NULL key if pg_tde.map dosn't exist. It's a
+ * temporary hack while we fixing smgr relations map.
  */
 RelKeyData *
-GetRelationKey(RelFileLocator rel)
+GetRelationKey(RelFileLocator rel, bool no_map_ok)
 {
 	RelKeyData *key;
 	Oid rel_id = rel.relNumber;
@@ -1274,7 +1373,7 @@ GetRelationKey(RelFileLocator rel)
 		return key;
 	}
 
-	key = pg_tde_get_key_from_file(&rel);
+	key = pg_tde_get_key_from_file(&rel, no_map_ok);
 
 	if (key != NULL)
 	{

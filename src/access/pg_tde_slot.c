@@ -522,6 +522,9 @@ PGTdeExecStoreBufferHeapTuple(Relation rel,
 	if (rel->rd_rel->relkind != RELKIND_TOASTVALUE)
 	{
 		RelKeyData *key = get_current_slot_relation_key(bslot, rel);
+
+		Assert(key != NULL);
+
 		slot_copytuple(bslot->decrypted_buffer, tuple);
 		PG_TDE_DECRYPT_TUPLE_EX(tuple, (HeapTuple)bslot->decrypted_buffer, key, "ExecStoreBuffer");
 		tuple->t_data = ((HeapTuple)bslot->decrypted_buffer)->t_data;
@@ -579,6 +582,6 @@ get_current_slot_relation_key(TDEBufferHeapTupleTableSlot *bslot, Relation rel)
 {
 	Assert(bslot != NULL);
 	if (bslot->cached_relation_key == NULL)
-		bslot->cached_relation_key = GetRelationKey(rel->rd_locator);
+		bslot->cached_relation_key = GetRelationKey(rel->rd_locator, false);
 	return bslot->cached_relation_key;
 }

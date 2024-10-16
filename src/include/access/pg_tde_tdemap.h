@@ -14,11 +14,28 @@
 #include "catalog/tde_principal_key.h"
 #include "storage/relfilelocator.h"
 
+/* TODO: get rid of that (see. commit message) */
+typedef enum InternalKeyRelType
+{
+	TDE_IKEY_REL_UNKNOWN,
+	TDE_IKEY_REL_GLOBAL,
+	TDE_IKEY_REL_SMGR,
+	TDE_IKEY_REL_BASIC
+} InternalKeyRelType;
+
 typedef struct InternalKey
 {
-    uint8   key[INTERNAL_KEY_LEN];
-	void*   ctx; // TODO: shouldn't be here / written to the disk
+	/* 
+	 * DO NOT re-arrange fields!
+	 * Any changes should be aligned with pg_tde_read/write_one_keydata()
+	 */
+    uint8			key[INTERNAL_KEY_LEN];
+	InternalKeyRelType	rel_type; 
+
+	void*			ctx;
 } InternalKey;
+
+#define INTERNAL_KEY_DAT_LEN	offsetof(InternalKey, ctx)
 
 typedef struct RelKeyData
 {
@@ -31,14 +48,15 @@ typedef struct XLogRelKey
 {
 	RelFileLocator  rlocator;
 	RelKeyData      relKey;
+	TDEPrincipalKeyInfo pkInfo;
 } XLogRelKey;
 
-extern RelKeyData* pg_tde_create_key_map_entry(const RelFileLocator *newrlocator);
+extern RelKeyData* pg_tde_create_key_map_entry(const RelFileLocator *newrlocator, InternalKeyRelType ktype);
 extern void pg_tde_write_key_map_entry(const RelFileLocator *rlocator, RelKeyData *enc_rel_key_data, TDEPrincipalKeyInfo *principal_key_info);
 extern void pg_tde_delete_key_map_entry(const RelFileLocator *rlocator);
 extern void pg_tde_free_key_map_entry(const RelFileLocator *rlocator, off_t offset);
 
-extern RelKeyData *GetRelationKey(RelFileLocator rel);
+extern RelKeyData *GetRelationKey(RelFileLocator rel, bool no_map_is_ok);
 
 extern void pg_tde_delete_tde_files(Oid dbOid, Oid spcOid);
 
@@ -49,7 +67,8 @@ extern bool pg_tde_write_map_keydata_files(off_t map_size, char *m_file_data, of
 extern RelKeyData* tde_create_rel_key(Oid rel_id, InternalKey *key, TDEPrincipalKeyInfo *principal_key_info);
 extern RelKeyData *tde_encrypt_rel_key(TDEPrincipalKey *principal_key, RelKeyData *rel_key_data, const RelFileLocator *rlocator);
 extern RelKeyData *tde_decrypt_rel_key(TDEPrincipalKey *principal_key, RelKeyData *enc_rel_key_data, const RelFileLocator *rlocator);
-extern RelKeyData *pg_tde_get_key_from_file(const RelFileLocator *rlocator);
+extern RelKeyData *pg_tde_get_key_from_file(const RelFileLocator *rlocator, bool no_map_ok);
+extern bool pg_tde_move_rel_key(const RelFileLocator *newrlocator, const RelFileLocator *oldrlocator);
 
 extern void pg_tde_set_db_file_paths(Oid dbOid, Oid spcOid, char *map_path, char *keydata_path);
 

@@ -390,7 +390,7 @@ tdeheap_page_prune(Relation relation, Buffer buffer,
 	 * We need it here as there is `pgtde_compactify_tuples()` down in
 	 * the call stack wich reencrypt tuples.
 	*/
-	GetRelationKey(relation->rd_locator);
+	GetRelationKey(relation->rd_locator, false);
 
 	/* Any error while applying the changes is critical */
 	START_CRIT_SECTION();

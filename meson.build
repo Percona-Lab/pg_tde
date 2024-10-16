@@ -96,6 +96,7 @@ sql_tests = [
       'trigger_on_view_basic',
       'change_access_method_basic',
       'insert_update_delete_basic',
+      'tablespace_basic',
       'vault_v2_test_basic',
 ]
 
@@ -124,6 +125,7 @@ if get_variable('percona_ext', false)
       'trigger_on_view',
       'change_access_method',
       'insert_update_delete',
+      'tablespace',
       'vault_v2_test',
   ]
 
