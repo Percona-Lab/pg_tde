@@ -27,16 +27,16 @@
 	((tdeheap_visibilitymap_get_status((r), (b), (v)) & VISIBILITYMAP_ALL_FROZEN) != 0)
 
 extern bool tdeheap_visibilitymap_clear(Relation rel, BlockNumber heapBlk,
-								Buffer vmbuf, uint8 flags);
+										Buffer vmbuf, uint8 flags);
 extern void tdeheap_visibilitymap_pin(Relation rel, BlockNumber heapBlk,
-							  Buffer *vmbuf);
+									  Buffer *vmbuf);
 extern bool tdeheap_visibilitymap_pin_ok(BlockNumber heapBlk, Buffer vmbuf);
 extern void tdeheap_visibilitymap_set(Relation rel, BlockNumber heapBlk, Buffer heapBuf,
-							  XLogRecPtr recptr, Buffer vmBuf, TransactionId cutoff_xid,
-							  uint8 flags);
+									  XLogRecPtr recptr, Buffer vmBuf, TransactionId cutoff_xid,
+									  uint8 flags);
 extern uint8 tdeheap_visibilitymap_get_status(Relation rel, BlockNumber heapBlk, Buffer *vmbuf);
 extern void tdeheap_visibilitymap_count(Relation rel, BlockNumber *all_visible, BlockNumber *all_frozen);
 extern BlockNumber tdeheap_visibilitymap_prepare_truncate(Relation rel,
-												  BlockNumber nheapblocks);
+														  BlockNumber nheapblocks);
 
 #endif							/* PG_TDE_VISIBILITYMAP_H */

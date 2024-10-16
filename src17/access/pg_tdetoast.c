@@ -40,10 +40,10 @@
 #define TDE_TOAST_COMPRESS_HEADER_SIZE (VARHDRSZ_COMPRESSED - VARHDRSZ)
 
 static void tdeheap_toast_tuple_externalize(ToastTupleContext *ttc,
-									int attribute, int options);
+											int attribute, int options);
 static Datum tdeheap_toast_save_datum(Relation rel, Datum value,
-								struct varlena *oldexternal,
-								int options);
+									  struct varlena *oldexternal,
+									  int options);
 static void tdeheap_toast_encrypt(Pointer dval, Oid valueid, RelKeyData *keys);
 static bool toastrel_valueid_exists(Relation toastrel, Oid valueid);
 static bool toastid_valueid_exists(Oid toastrelid, Oid valueid);
@@ -73,12 +73,12 @@ tdeheap_toast_delete(Relation rel, HeapTuple oldtup, bool is_speculative)
 	 * Get the tuple descriptor and break down the tuple into fields.
 	 *
 	 * NOTE: it's debatable whether to use tdeheap_deform_tuple() here or just
-	 * tdeheap_getattr() only the varlena columns.  The latter could win if there
-	 * are few varlena columns and many non-varlena ones. However,
-	 * tdeheap_deform_tuple costs only O(N) while the tdeheap_getattr way would cost
-	 * O(N^2) if there are many varlena columns, so it seems better to err on
-	 * the side of linear cost.  (We won't even be here unless there's at
-	 * least one varlena column, by the way.)
+	 * tdeheap_getattr() only the varlena columns.  The latter could win if
+	 * there are few varlena columns and many non-varlena ones. However,
+	 * tdeheap_deform_tuple costs only O(N) while the tdeheap_getattr way
+	 * would cost O(N^2) if there are many varlena columns, so it seems better
+	 * to err on the side of linear cost.  (We won't even be here unless
+	 * there's at least one varlena column, by the way.)
 	 */
 	tupleDesc = rel->rd_att;
 
@@ -110,7 +110,7 @@ tdeheap_toast_delete(Relation rel, HeapTuple oldtup, bool is_speculative)
  */
 HeapTuple
 tdeheap_toast_insert_or_update(Relation rel, HeapTuple newtup, HeapTuple oldtup,
-							int options)
+							   int options)
 {
 	HeapTuple	result_tuple;
 	TupleDesc	tupleDesc;
@@ -197,8 +197,8 @@ tdeheap_toast_insert_or_update(Relation rel, HeapTuple newtup, HeapTuple oldtup,
 	 * large attributes with attstorage EXTENDED or EXTERNAL, and store them
 	 * external.
 	 */
-	while  (tdeheap_compute_data_size(tupleDesc,
-								  toast_values, toast_isnull) > maxDataLen)
+	while (tdeheap_compute_data_size(tupleDesc,
+									 toast_values, toast_isnull) > maxDataLen)
 	{
 		int			biggest_attno;
 
@@ -238,8 +238,8 @@ tdeheap_toast_insert_or_update(Relation rel, HeapTuple newtup, HeapTuple oldtup,
 	 * are still inline, and make them external.  But skip this if there's no
 	 * toast table to push them to.
 	 */
-	while  (tdeheap_compute_data_size(tupleDesc,
-								  toast_values, toast_isnull) > maxDataLen &&
+	while (tdeheap_compute_data_size(tupleDesc,
+									 toast_values, toast_isnull) > maxDataLen &&
 		   rel->rd_rel->reltoastrelid != InvalidOid)
 	{
 		int			biggest_attno;
@@ -254,8 +254,8 @@ tdeheap_toast_insert_or_update(Relation rel, HeapTuple newtup, HeapTuple oldtup,
 	 * Round 3 - this time we take attributes with storage MAIN into
 	 * compression
 	 */
-	while  (tdeheap_compute_data_size(tupleDesc,
-								  toast_values, toast_isnull) > maxDataLen)
+	while (tdeheap_compute_data_size(tupleDesc,
+									 toast_values, toast_isnull) > maxDataLen)
 	{
 		int			biggest_attno;
 
@@ -273,8 +273,8 @@ tdeheap_toast_insert_or_update(Relation rel, HeapTuple newtup, HeapTuple oldtup,
 	 */
 	maxDataLen = TOAST_TUPLE_TARGET_MAIN - hoff;
 
-	while  (tdeheap_compute_data_size(tupleDesc,
-								  toast_values, toast_isnull) > maxDataLen &&
+	while (tdeheap_compute_data_size(tupleDesc,
+									 toast_values, toast_isnull) > maxDataLen &&
 		   rel->rd_rel->reltoastrelid != InvalidOid)
 	{
 		int			biggest_attno;
@@ -313,7 +313,7 @@ tdeheap_toast_insert_or_update(Relation rel, HeapTuple newtup, HeapTuple oldtup,
 			new_header_len += BITMAPLEN(numAttrs);
 		new_header_len = MAXALIGN(new_header_len);
 		new_data_len = tdeheap_compute_data_size(tupleDesc,
-											  toast_values, toast_isnull);
+												 toast_values, toast_isnull);
 		new_tuple_len = new_header_len + new_data_len;
 
 		/*
@@ -335,13 +335,13 @@ tdeheap_toast_insert_or_update(Relation rel, HeapTuple newtup, HeapTuple oldtup,
 
 		/* Copy over the data, and fill the null bitmap if needed */
 		tdeheap_fill_tuple(tupleDesc,
-						toast_values,
-						toast_isnull,
-						(char *) new_data + new_header_len,
-						new_data_len,
-						&(new_data->t_infomask),
-						((ttc.ttc_flags & TOAST_HAS_NULLS) != 0) ?
-						new_data->t_bits : NULL);
+						   toast_values,
+						   toast_isnull,
+						   (char *) new_data + new_header_len,
+						   new_data_len,
+						   &(new_data->t_infomask),
+						   ((ttc.ttc_flags & TOAST_HAS_NULLS) != 0) ?
+						   new_data->t_bits : NULL);
 	}
 	else
 		result_tuple = newtup;
@@ -525,7 +525,7 @@ toast_flatten_tuple_to_datum(HeapTupleHeader tup,
 		new_header_len += BITMAPLEN(numAttrs);
 	new_header_len = MAXALIGN(new_header_len);
 	new_data_len = tdeheap_compute_data_size(tupleDesc,
-										  toast_values, toast_isnull);
+											 toast_values, toast_isnull);
 	new_tuple_len = new_header_len + new_data_len;
 
 	new_data = (HeapTupleHeader) palloc0(new_tuple_len);
@@ -544,12 +544,12 @@ toast_flatten_tuple_to_datum(HeapTupleHeader tup,
 
 	/* Copy over the data, and fill the null bitmap if needed */
 	tdeheap_fill_tuple(tupleDesc,
-					toast_values,
-					toast_isnull,
-					(char *) new_data + new_header_len,
-					new_data_len,
-					&(new_data->t_infomask),
-					has_nulls ? new_data->t_bits : NULL);
+					   toast_values,
+					   toast_isnull,
+					   (char *) new_data + new_header_len,
+					   new_data_len,
+					   &(new_data->t_infomask),
+					   has_nulls ? new_data->t_bits : NULL);
 
 	/*
 	 * Free allocated temp values
@@ -588,8 +588,8 @@ toast_build_flattened_tuple(TupleDesc tupleDesc,
 	Pointer		freeable_values[MaxTupleAttributeNumber];
 
 	/*
-	 * We can pass the caller's isnull array directly to tdeheap_form_tuple, but
-	 * we potentially need to modify the values array.
+	 * We can pass the caller's isnull array directly to tdeheap_form_tuple,
+	 * but we potentially need to modify the values array.
 	 */
 	Assert(numAttrs <= MaxTupleAttributeNumber);
 	memcpy(new_values, values, numAttrs * sizeof(Datum));
@@ -640,8 +640,8 @@ toast_build_flattened_tuple(TupleDesc tupleDesc,
  */
 void
 tdeheap_fetch_toast_slice(Relation toastrel, Oid valueid, int32 attrsize,
-					   int32 sliceoffset, int32 slicelength,
-					   struct varlena *result)
+						  int32 sliceoffset, int32 slicelength,
+						  struct varlena *result)
 {
 	Relation   *toastidxs;
 	ScanKeyData toastkey[3];
@@ -657,7 +657,7 @@ tdeheap_fetch_toast_slice(Relation toastrel, Oid valueid, int32 attrsize,
 	int			validIndex;
 	SnapshotData SnapshotToast;
 	char		decrypted_data[TOAST_MAX_CHUNK_SIZE];
-	RelKeyData 	*key = GetRelationKey(toastrel->rd_locator);
+	RelKeyData *key = GetRelationKey(toastrel->rd_locator);
 	char		iv_prefix[16] = {0,};
 
 
@@ -727,7 +727,7 @@ tdeheap_fetch_toast_slice(Relation toastrel, Oid valueid, int32 attrsize,
 		int32		expected_size;
 		int32		chcpystrt;
 		int32		chcpyend;
-		int32 		encrypt_offset;
+		int32		encrypt_offset;
 
 		/*
 		 * Have a chunk, extract the sequence number and the data
@@ -792,30 +792,35 @@ tdeheap_fetch_toast_slice(Relation toastrel, Oid valueid, int32 attrsize,
 		if (curchunk == endchunk)
 			chcpyend = (sliceoffset + slicelength - 1) % TOAST_MAX_CHUNK_SIZE;
 
-		/* 
-		 * If TOAST is compressed, the first TDE_TOAST_COMPRESS_HEADER_SIZE (4 bytes) is
-		 * not encrypted and contains compression info. It should be added to the
-		 * result as it is and the rest should be decrypted. Encryption offset in
-		 * that case will be 0 for the first chunk (despite the encrypted data
-		 * starting with the offset TDE_TOAST_COMPRESS_HEADER_SIZE, we've encrypted it
-		 * without compression headers) and `chunk start offset - 4` for the next
-		 * chunks. 
+		/*
+		 * If TOAST is compressed, the first TDE_TOAST_COMPRESS_HEADER_SIZE (4
+		 * bytes) is not encrypted and contains compression info. It should be
+		 * added to the result as it is and the rest should be decrypted.
+		 * Encryption offset in that case will be 0 for the first chunk
+		 * (despite the encrypted data starting with the offset
+		 * TDE_TOAST_COMPRESS_HEADER_SIZE, we've encrypted it without
+		 * compression headers) and `chunk start offset - 4` for the next
+		 * chunks.
 		 */
 		encrypt_offset = chcpystrt;
-		if (VARATT_IS_COMPRESSED(result)) {
-			if (curchunk == 0) {
+		if (VARATT_IS_COMPRESSED(result))
+		{
+			if (curchunk == 0)
+			{
 				memcpy(VARDATA(result), chunkdata + chcpystrt, TDE_TOAST_COMPRESS_HEADER_SIZE);
 				chcpystrt += TDE_TOAST_COMPRESS_HEADER_SIZE;
-			} else {
+			}
+			else
+			{
 				encrypt_offset -= TDE_TOAST_COMPRESS_HEADER_SIZE;
 			}
 		}
 		/* Decrypt the data chunk by chunk here */
 
 		PG_TDE_DECRYPT_DATA(iv_prefix, (curchunk * TOAST_MAX_CHUNK_SIZE) + encrypt_offset,
-					chunkdata + chcpystrt,
-					(chcpyend - chcpystrt) + 1,
-					decrypted_data, key);
+							chunkdata + chcpystrt,
+							(chcpyend - chcpystrt) + 1,
+							decrypted_data, key);
 
 		memcpy(VARDATA(result) +
 			   (curchunk * TOAST_MAX_CHUNK_SIZE - sliceoffset) + chcpystrt,
@@ -839,20 +844,21 @@ tdeheap_fetch_toast_slice(Relation toastrel, Oid valueid, int32 attrsize,
 	systable_endscan_ordered(toastscan);
 	toast_close_indexes(toastidxs, num_indexes, AccessShareLock);
 }
-// TODO: these should be in their own file so we can proplerly autoupdate them
+
+/*  TODO: these should be in their own file so we can proplerly autoupdate them */
 /* pg_tde extension */
 static void
 tdeheap_toast_encrypt(Pointer dval, Oid valueid, RelKeyData *key)
 {
-	int32		data_size =0;
-	char*		data_p;
-	char*		encrypted_data;
+	int32		data_size = 0;
+	char	   *data_p;
+	char	   *encrypted_data;
 	char		iv_prefix[16] = {0,};
 
 	/*
-	 * Encryption specific data_p and data_size as we have to avoid
-	 * encryption of the compression info.
-	 * See https://github.com/percona/pg_tde/commit/dee6e357ef05d217a4c4df131249a80e5e909163
+	 * Encryption specific data_p and data_size as we have to avoid encryption
+	 * of the compression info. See
+	 * https://github.com/percona/pg_tde/commit/dee6e357ef05d217a4c4df131249a80e5e909163
 	 */
 	if (VARATT_IS_SHORT(dval))
 	{
@@ -870,7 +876,7 @@ tdeheap_toast_encrypt(Pointer dval, Oid valueid, RelKeyData *key)
 		data_size = VARSIZE(dval) - VARHDRSZ;
 	}
 	/* Now encrypt the data and replace it in ttc */
-	encrypted_data = (char *)palloc(data_size);
+	encrypted_data = (char *) palloc(data_size);
 
 	memcpy(iv_prefix, &valueid, sizeof(Oid));
 	PG_TDE_ENCRYPT_DATA(iv_prefix, 0, data_p, data_size, encrypted_data, key);
@@ -881,7 +887,7 @@ tdeheap_toast_encrypt(Pointer dval, Oid valueid, RelKeyData *key)
 
 /*
  * Move an attribute to external storage.
- * 
+ *
  * copy from PG src/backend/access/table/toast_helper.c
  */
 static void
@@ -893,7 +899,7 @@ tdeheap_toast_tuple_externalize(ToastTupleContext *ttc, int attribute, int optio
 
 	attr->tai_colflags |= TOASTCOL_IGNORE;
 	*value = tdeheap_toast_save_datum(ttc->ttc_rel, old_value, attr->tai_oldexternal,
-							  options);
+									  options);
 	if ((attr->tai_colflags & TOASTCOL_NEEDS_FREE) != 0)
 		pfree(DatumGetPointer(old_value));
 	attr->tai_colflags |= TOASTCOL_NEEDS_FREE;
@@ -911,13 +917,13 @@ tdeheap_toast_tuple_externalize(ToastTupleContext *ttc, int attribute, int optio
  * value: datum to be pushed to toast storage
  * oldexternal: if not NULL, toast pointer previously representing the datum
  * options: options to be passed to tdeheap_insert() for toast rows
- * 
+ *
  * based on toast_save_datum from PG src/backend/access/common/toast_internals.c
  * ----------
  */
 static Datum
 tdeheap_toast_save_datum(Relation rel, Datum value,
-				 struct varlena *oldexternal, int options)
+						 struct varlena *oldexternal, int options)
 {
 	Relation	toastrel;
 	Relation   *toastidxs;
@@ -1091,8 +1097,8 @@ tdeheap_toast_save_datum(Relation rel, Datum value,
 	}
 
 	/*
-	* Encrypt toast data.
-	*/
+	 * Encrypt toast data.
+	 */
 	tdeheap_toast_encrypt(dval, toast_pointer.va_valueid, GetRelationKey(toastrel->rd_locator));
 
 	/*
@@ -1127,8 +1133,8 @@ tdeheap_toast_save_datum(Relation rel, Datum value,
 		toasttup = tdeheap_form_tuple(toasttupDesc, t_values, t_isnull);
 
 		/*
-		 * The tuple should be insterted not encrypted.
-		 * TOAST data already encrypted.
+		 * The tuple should be insterted not encrypted. TOAST data already
+		 * encrypted.
 		 */
 		options |= HEAP_INSERT_TDE_NO_ENCRYPT;
 		tdeheap_insert(toastrel, toasttup, mycid, options, NULL);
